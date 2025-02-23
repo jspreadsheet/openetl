@@ -38,7 +38,7 @@ const DEFAULT_CONFIG = {
  * @param availableAdapters - Map of available adapter implementations
  * @returns Object containing pipeline management methods
  */
-export default function Orchestrator(vault: Vault, availableAdapters: Adapters) {
+function Orchestrator(vault: Vault, availableAdapters: Adapters) {
     const adapters = new Map<string, Adapter>();
 
     /**
@@ -394,3 +394,5 @@ export default function Orchestrator(vault: Vault, availableAdapters: Adapters) 
 
     return { registerAdapter, runPipeline };
 }
+
+export { Orchestrator };

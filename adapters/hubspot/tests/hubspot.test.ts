@@ -1,4 +1,4 @@
-import Hubspot, { HubSpotAdapter } from '../src/index'; // Adjust path as needed
+import { hubspot, HubSpotAdapter } from '../src/index'; // Adjust path as needed
 import axios, { AxiosResponse, AxiosError } from 'axios';
 import { Connector, AuthConfig, OAuth2Auth, AdapterInstance } from '../../../src/types';
 
@@ -45,7 +45,7 @@ describe('HubSpot Adapter', () => {
         };
 
         // Create adapter instance
-        adapter = Hubspot(connector, auth);
+        adapter = hubspot(connector, auth);
     });
 
     afterEach(() => {
@@ -268,7 +268,7 @@ describe('HubSpot Adapter', () => {
 
     it('throws error for invalid endpoint', () => {
         const invalidConnector = { ...connector, endpoint_id: 'invalid-endpoint' };
-        expect(() => Hubspot(invalidConnector, auth)).toThrow(
+        expect(() => hubspot(invalidConnector, auth)).toThrow(
             'Endpoint invalid-endpoint not found in HubSpot adapter'
         );
     });
