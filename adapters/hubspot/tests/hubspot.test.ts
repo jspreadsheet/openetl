@@ -1,6 +1,6 @@
-import Hubspot, { HubSpotAdapter } from '../src/adapters/hubpost'; // Adjust path as needed
+import Hubspot, { HubSpotAdapter } from '../src/index'; // Adjust path as needed
 import axios, { AxiosResponse, AxiosError } from 'axios';
-import { Connector, AuthConfig, OAuth2Auth, AdapterInstance } from '../src/types';
+import { Connector, AuthConfig, OAuth2Auth, AdapterInstance } from '../../../src/types';
 
 jest.mock('axios');
 

@@ -6,8 +6,7 @@
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "lint": "eslint src --ext .ts",
-    "prepare": "npm run build"
+    "lint": "eslint src --ext .ts"
   },
   "license": "MIT",
   "type": "module",
@@ -23,7 +22,6 @@
     "tsc": "^2.0.4"
   },
   "dependencies": {
-    "openetl": "^1.0.0",
     "@types/pg": "^8.11.11",
     "pg": "^8.13.3"
   }

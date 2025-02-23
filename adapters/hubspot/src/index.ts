@@ -8,7 +8,7 @@
  * Fix: Add batch upload support for efficiency.
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from '../types';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from '../../../src/types';
 
 import axios, { AxiosError } from 'axios';
 
