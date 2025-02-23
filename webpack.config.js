@@ -27,11 +27,8 @@ if (! axios && typeof(require) === 'function') {
     global.openetl = factory();
 }(this, (function () {`;
 
-            // Custom UMD footer (adjust return based on your index.ts export)
-            const footer = `
-    return openetl;
-}));
-`;
+            const footer = `    return openetl;
+})));`;
 
             // Combine header, original content, and footer
             const updatedFileContent = header + '\n\n' + fileContent + '\n\n' + footer;
