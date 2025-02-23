@@ -9,7 +9,7 @@ import { QueryResult } from 'pg'; // Use named imports
 
 const { Pool } = pg;
 
-export const PostgresAdapter: DatabaseAdapter = {
+const PostgresqlAdapter: DatabaseAdapter = {
   id: "postgres",
   name: "PostgreSQL Database Adapter",
   type: "database",
@@ -27,8 +27,8 @@ export const PostgresAdapter: DatabaseAdapter = {
   ],
 };
 
-export default function Adapter(connector: Connector, auth: AuthConfig): AdapterInstance {
-  const endpoint = PostgresAdapter.endpoints.find(e => e.id === connector.endpoint_id)!;
+function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
+  const endpoint = PostgresqlAdapter.endpoints.find(e => e.id === connector.endpoint_id)!;
   if (!endpoint) {
     throw new Error(`Endpoint ${connector.endpoint_id} not found in PostgreSQL adapter`);
   }
@@ -170,8 +170,7 @@ export default function Adapter(connector: Connector, auth: AuthConfig): Adapter
         const result: QueryResult<any> = await pool.query(query);
         console.log("Downloaded rows:", result.rows.length);
         return {
-          data: result.rows,
-          hasMore: result.rows.length === pageOptions.limit,
+          data: result.rows
         };
       } catch (error: any) {
         console.error("Download error:", error.message);
@@ -194,3 +193,5 @@ export default function Adapter(connector: Connector, auth: AuthConfig): Adapter
     }
   };
 }
+
+export { postgresql, PostgresqlAdapter };
