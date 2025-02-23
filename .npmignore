@@ -5,3 +5,4 @@
 .env-template
 jest.config.js
 tsconfig.json
+/.idea/
