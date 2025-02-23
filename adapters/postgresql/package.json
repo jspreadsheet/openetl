@@ -1,6 +1,6 @@
 {
   "name": "@openetl/postgresql",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenETL PostgreSQL Adapter",
   "main": "dist/index.js",
   "scripts": {
@@ -9,7 +9,6 @@
     "lint": "eslint src --ext .ts"
   },
   "license": "MIT",
-  "type": "module",
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.10.0",
