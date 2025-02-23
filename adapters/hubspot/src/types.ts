@@ -270,7 +270,6 @@ export interface AdapterInstance {
         };
     }>;
     upload?(data: any[]): Promise<void>;
-    transform?(data: any[]): Promise<any[]>;
 }
 
 export type Adapter = (connector: Connector, auth: AuthConfig) => AdapterInstance;

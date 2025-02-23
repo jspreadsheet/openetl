@@ -1,6 +1,6 @@
 {
   "name": "@openetl/hubspot",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "OpenETL HubSpot Adapter",
   "main": "dist/index.js",
   "scripts": {

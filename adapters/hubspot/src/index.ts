@@ -12,7 +12,7 @@ import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter
 
 import axios, { AxiosError } from 'axios';
 
-export const HubSpotAdapter: HttpAdapter = {
+const HubSpotAdapter: HttpAdapter = {
   id: "hubspot-adapter",
   name: "HubSpot CRM Adapter",
   type: "http",
@@ -183,7 +183,7 @@ async function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export default function Hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
+function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
     const endpoint = HubSpotAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
@@ -399,3 +399,5 @@ export default function Hubspot(connector: Connector, auth: AuthConfig): Adapter
         },
     };
 }
+
+export { hubspot, HubSpotAdapter };
