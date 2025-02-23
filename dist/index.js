@@ -1,10 +1,30 @@
-"use strict";
+
+if (! axios && typeof(require) === 'function') {
+    var axios = require('axios');
+}
+
+;(function (global, factory) {
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+    typeof define === 'function' && define.amd ? define(factory) :
+    global.openetl = factory();
+}(this, (function () {
+
+var openetl;
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ 607:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const axios_1 = __importDefault(require("axios"));
-const transform_1 = __importDefault(require("./utils/transform"));
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports["default"] = Orchestrator;
+const axios_1 = __importDefault(__webpack_require__(467));
+const transform_1 = __importDefault(__webpack_require__(626));
 /**
  * Creates a promise that resolves after the specified delay
  * @param ms - Delay duration in milliseconds
@@ -338,4 +358,220 @@ function Orchestrator(vault, availableAdapters) {
     });
     return { registerAdapter, runPipeline };
 }
-exports.default = Orchestrator;
+
+
+/***/ }),
+
+/***/ 626:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports["default"] = Transform;
+async function Transform(connector, data) {
+    let transformedData = [...data];
+    for (const transformation of connector.transform || []) {
+        switch (transformation.type) {
+            case 'concat': {
+                // Narrow options to ConcatOptions
+                const options = transformation.options;
+                const { properties, glue = ' ', to } = options;
+                if (properties && to) {
+                    transformedData = transformedData.map(item => {
+                        const concatenated = properties.map((prop) => item[prop]).filter(Boolean).join(glue);
+                        return { ...item, [to]: concatenated };
+                    });
+                }
+                break;
+            }
+            case 'renameKey': {
+                const options = transformation.options;
+                const { from, to } = options;
+                if (from && to) {
+                    transformedData = transformedData.map(item => {
+                        const value = from.split('.').reduce((obj, key) => obj?.[key], item);
+                        return { ...item, [to]: value };
+                    });
+                }
+                break;
+            }
+            case 'uppercase': {
+                const options = transformation.options;
+                const { field, to } = options;
+                if (field) {
+                    transformedData = transformedData.map(item => {
+                        const value = item[field]?.toString().toUpperCase() || '';
+                        return { ...item, [to || field]: value };
+                    });
+                }
+                break;
+            }
+            case 'lowercase': {
+                const options = transformation.options;
+                const { field, to } = options;
+                if (field) {
+                    transformedData = transformedData.map(item => {
+                        const value = item[field]?.toString().toLowerCase() || '';
+                        return { ...item, [to || field]: value };
+                    });
+                }
+                break;
+            }
+            case 'trim': {
+                const options = transformation.options;
+                const { field, to } = options;
+                if (field) {
+                    transformedData = transformedData.map(item => {
+                        const value = item[field]?.toString().trim() || '';
+                        return { ...item, [to || field]: value };
+                    });
+                }
+                break;
+            }
+            case 'split': {
+                const options = transformation.options;
+                const { field, delimiter, to } = options;
+                if (field && delimiter && to) {
+                    transformedData = transformedData.map(item => {
+                        const value = item[field]?.toString().split(delimiter) || [];
+                        return { ...item, [to]: value };
+                    });
+                }
+                break;
+            }
+            case 'replace': {
+                const options = transformation.options;
+                const { field, search, replace, to } = options;
+                if (field && search && replace !== undefined) {
+                    transformedData = transformedData.map(item => {
+                        const value = item[field]?.toString().replace(new RegExp(search, 'g'), replace) || '';
+                        return { ...item, [to || field]: value };
+                    });
+                }
+                break;
+            }
+            case 'addPrefix': {
+                const options = transformation.options;
+                const { field, prefix, to } = options;
+                if (field && prefix) {
+                    transformedData = transformedData.map(item => {
+                        const value = `${prefix}${item[field] || ''}`;
+                        return { ...item, [to || field]: value };
+                    });
+                }
+                break;
+            }
+            case 'addSuffix': {
+                const options = transformation.options;
+                const { field, suffix, to } = options;
+                if (field && suffix) {
+                    transformedData = transformedData.map(item => {
+                        const value = `${item[field] || ''}${suffix}`;
+                        return { ...item, [to || field]: value };
+                    });
+                }
+                break;
+            }
+            case 'toNumber': {
+                const options = transformation.options;
+                const { field, to } = options;
+                if (field) {
+                    transformedData = transformedData.map(item => {
+                        const value = parseFloat(item[field]?.toString()) || 0;
+                        return { ...item, [to || field]: isNaN(value) ? 0 : value };
+                    });
+                }
+                break;
+            }
+            case 'extract': {
+                const options = transformation.options;
+                const { field, pattern, start, end, to } = options;
+                if (field && to) {
+                    transformedData = transformedData.map(item => {
+                        const value = item[field]?.toString() || '';
+                        if (pattern) {
+                            const match = value.match(new RegExp(pattern));
+                            return { ...item, [to]: match ? match[1] || match[0] : '' };
+                        }
+                        else if (start !== undefined && end !== undefined) {
+                            return { ...item, [to]: value.slice(start, end) };
+                        }
+                        return item;
+                    });
+                }
+                break;
+            }
+            case 'mergeObjects': {
+                const options = transformation.options;
+                const { fields, to } = options;
+                if (fields && to) {
+                    transformedData = transformedData.map(item => {
+                        const merged = fields.reduce((obj, field) => {
+                            if (item[field] !== undefined) {
+                                obj[field] = item[field];
+                            }
+                            return obj;
+                        }, {});
+                        return { ...item, [to]: merged };
+                    });
+                }
+                break;
+            }
+            default:
+                console.warn(`Unknown transformation type: ${transformation.type}`);
+                break;
+        }
+    }
+    return transformedData;
+}
+
+
+/***/ }),
+
+/***/ 467:
+/***/ ((module) => {
+
+module.exports = axios;
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __webpack_require__(607);
+/******/ 	openetl = __webpack_exports__;
+/******/ 	
+/******/ })()
+;
+
+
+    return openetl;
+}));
