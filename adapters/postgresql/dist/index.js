@@ -1,4 +1,23 @@
-"use strict";
+
+if (! pg && typeof(require) === 'function') {
+    var pg = require('pg');
+}
+
+;(function (global, factory) {
+    typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+    typeof define === 'function' && define.amd ? define(factory) :
+    global.adapter = factory();
+}(this, (function () {
+
+var adapter;
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ 920:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
 /**
  * HubSpot Adapter for OpenETL
  * https://componade.com/openetl
@@ -6,11 +25,12 @@
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.PostgresAdapter = void 0;
-const pg_1 = __importDefault(require("pg")); // Use named imports
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PostgresqlAdapter = void 0;
+exports.postgresql = postgresql;
+const pg_1 = __importDefault(__webpack_require__(645)); // Use named imports
 const { Pool } = pg_1.default;
-exports.PostgresAdapter = {
+const PostgresqlAdapter = {
     id: "postgres",
     name: "PostgreSQL Database Adapter",
     type: "database",
@@ -27,8 +47,9 @@ exports.PostgresAdapter = {
         { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
     ],
 };
-function Adapter(connector, auth) {
-    const endpoint = exports.PostgresAdapter.endpoints.find(e => e.id === connector.endpoint_id);
+exports.PostgresqlAdapter = PostgresqlAdapter;
+function postgresql(connector, auth) {
+    const endpoint = PostgresqlAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in PostgreSQL adapter`);
     }
@@ -152,8 +173,7 @@ function Adapter(connector, auth) {
                 const result = await pool.query(query);
                 console.log("Downloaded rows:", result.rows.length);
                 return {
-                    data: result.rows,
-                    hasMore: result.rows.length === pageOptions.limit,
+                    data: result.rows
                 };
             }
             catch (error) {
@@ -178,4 +198,53 @@ function Adapter(connector, auth) {
         }
     };
 }
-exports.default = Adapter;
+
+
+/***/ }),
+
+/***/ 645:
+/***/ ((module) => {
+
+module.exports = pg;
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __webpack_require__(920);
+/******/ 	adapter = __webpack_exports__;
+/******/ 	
+/******/ })()
+;
+
+    return adapter;
+})));
