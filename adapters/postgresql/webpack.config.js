@@ -17,7 +17,7 @@ class MyPlugin {
 
             // Custom UMD header with axios passed to factory
             const header = `
-if (! axios && typeof(require) === 'function') {
+if (! pg && typeof(require) === 'function') {
     var pg = require('pg');
 }
 
