@@ -3,7 +3,7 @@
  * https://componade.com/openetl
  */
 
-import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth, Filter, FilterGroup } from '../../../src/types';
+import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth, Filter, FilterGroup } from './types';
 import pg from 'pg'; // Use named imports
 import { QueryResult } from 'pg'; // Use named imports
 
