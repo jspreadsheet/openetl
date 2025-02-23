@@ -32,9 +32,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HubSpotAdapter = void 0;
-exports["default"] = Hubspot;
+exports.hubspot = hubspot;
 const axios_1 = __importDefault(__webpack_require__(467));
-exports.HubSpotAdapter = {
+const HubSpotAdapter = {
     id: "hubspot-adapter",
     name: "HubSpot CRM Adapter",
     type: "http",
@@ -195,11 +195,12 @@ exports.HubSpotAdapter = {
         },
     ],
 };
+exports.HubSpotAdapter = HubSpotAdapter;
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-function Hubspot(connector, auth) {
-    const endpoint = exports.HubSpotAdapter.endpoints.find(e => e.id === connector.endpoint_id);
+function hubspot(connector, auth) {
+    const endpoint = HubSpotAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
     }
@@ -303,7 +304,7 @@ function Hubspot(connector, auth) {
             const config = await buildRequestConfig();
             try {
                 console.log("Testing connection to HubSpot...");
-                await axios_1.default.get(`${exports.HubSpotAdapter.base_url}/crm/v3/objects/contacts`, {
+                await axios_1.default.get(`${HubSpotAdapter.base_url}/crm/v3/objects/contacts`, {
                     ...config,
                     params: { limit: 1, ...config.params },
                 });
@@ -331,7 +332,7 @@ function Hubspot(connector, auth) {
                 config.params.after = after;
             }
             try {
-                const response = await axios_1.default.get(`${exports.HubSpotAdapter.base_url}${endpoint.path}`, config);
+                const response = await axios_1.default.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
                 console.log("API Response:", JSON.stringify(response.data, null, 2));
                 const { paging, results } = response.data;
                 if (!Array.isArray(results)) {
@@ -385,7 +386,7 @@ function Hubspot(connector, auth) {
             const config = await buildRequestConfig();
             for (const item of data) {
                 try {
-                    await axios_1.default.post(`${exports.HubSpotAdapter.base_url}${endpoint.path}`, item, config);
+                    await axios_1.default.post(`${HubSpotAdapter.base_url}${endpoint.path}`, item, config);
                 }
                 catch (error) {
                     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
