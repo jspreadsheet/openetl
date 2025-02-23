@@ -1,0 +1,7 @@
+/adapters/
+/src/
+/tests/
+/docs/
+.env-template
+jest.config.js
+tsconfig.json
