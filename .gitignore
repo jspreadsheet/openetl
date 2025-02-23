@@ -4,3 +4,4 @@
 /adapters/hubspot/package-lock.json
 /adapters/postgresql/package-lock.json
 /adapters/postgresql/node_modules/
+/dist/test.js
