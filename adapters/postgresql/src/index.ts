@@ -125,7 +125,16 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
     const values = data.map(row => {
       const rowValues = fields.map(field => {
         const value = row[field];
-        return value === null || value === undefined ? 'NULL' : `'${value.toString().replace(/'/g, "''")}'`;
+
+        if (value === null || typeof value === 'undefined') {
+          return 'NULL';
+        }
+
+        if (typeof value === 'number') {
+          return value.toString();
+        }
+
+        return `'${value.toString().replace(/'/g, "''")}'`;
       });
       return `(${rowValues.join(', ')})`;
     });
