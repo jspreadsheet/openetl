@@ -1,6 +1,7 @@
 import { postgresql, PostgresqlAdapter } from '../src/index'; // Adjust path as needed
 import pg from 'pg';
 import { Connector, AuthConfig, AdapterInstance } from '../../../src/types';
+import { FilterGroup } from '../src/types';
 
 jest.mock('pg');
 
@@ -58,7 +59,7 @@ describe('PostgreSQL Adapter', () => {
       query: jest.fn(),
       end: jest.fn().mockResolvedValue(undefined),
     };
-    (Pool as jest.Mock).mockImplementation(() => mockPool);
+    (Pool as unknown as jest.Mock).mockImplementation(() => mockPool);
 
     // Create adapter instance
     adapter = postgresql(connector, auth);
@@ -69,14 +70,17 @@ describe('PostgreSQL Adapter', () => {
    * Ensures the adapter can connect to the PostgreSQL database.
    */
   it('connects successfully with valid credentials', async () => {
-    mockPool.connect.mockResolvedValueOnce({
+    const mockResult = {
       query: jest.fn().mockResolvedValue({ rows: [1] }),
       release: jest.fn(),
-    });
+    };
+
+    mockPool.connect.mockResolvedValueOnce(mockResult);
 
     await expect(adapter.connect()).resolves.toBeUndefined();
     expect(mockPool.connect).toHaveBeenCalled();
-    expect(mockPool.connect().query).toHaveBeenCalledWith('SELECT 1');
+    expect(mockResult.query).toHaveBeenCalledWith('SELECT 1');
+    expect(mockResult.release).toHaveBeenCalled();
   });
 
   it('throws error on connection failure', async () => {
@@ -204,15 +208,17 @@ describe('PostgreSQL Adapter', () => {
    * Tests handling of filter groups.
    */
   it('builds query with filter groups', async () => {
+    const filters: FilterGroup[] = [{
+      op: 'OR',
+      filters: [
+        { field: 'status', operator: '=', value: 'active' },
+        { field: 'role', operator: '=', value: 'admin' },
+      ],
+    }]
+
     const connectorWithFilterGroup = {
       ...connector,
-      filters: [{
-        op: 'OR',
-        filters: [
-          { field: 'status', operator: '=', value: 'active' },
-          { field: 'role', operator: '=', value: 'admin' },
-        ],
-      }],
+      filters,
     };
     const adapterWithFilterGroup = postgresql(connectorWithFilterGroup, auth);
     const mockRows = [{ id: 1, name: 'Admin', email: 'admin@example.com' }];
