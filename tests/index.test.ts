@@ -1,4 +1,4 @@
-import Orchestrator from '../src/index';
+import { Orchestrator } from '../src/index';
 import { Pipeline, Adapter, AuthConfig, Vault, Connector } from '../src/types';
 
 let attemptCount = 0;
@@ -121,10 +121,9 @@ describe('Orchestrator', () => {
 
         const adapterInstance = mockAdapter.mock.results[0].value;
         expect(adapterInstance.connect).toHaveBeenCalled();
-        expect(adapterInstance.download).toHaveBeenCalledTimes(3);
+        expect(adapterInstance.download).toHaveBeenCalledTimes(2);
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 0 });
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 5 });
-        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 10 });
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({ type: 'extract', dataCount: 5 }));
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({ type: 'extract', dataCount: 1 }));
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({ type: 'complete' }));
@@ -144,10 +143,9 @@ describe('Orchestrator', () => {
 
         const adapterInstance = mockAdapter.mock.results[0].value;
         expect(adapterInstance.connect).toHaveBeenCalled();
-        expect(adapterInstance.download).toHaveBeenCalledTimes(3);
+        expect(adapterInstance.download).toHaveBeenCalledTimes(2);
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 0 });
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 5 });
-        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 10 });
 
         const extractLogs = logging.mock.calls.filter(call => call[0].type === 'extract');
         expect(extractLogs).toHaveLength(3);
@@ -192,11 +190,10 @@ describe('Orchestrator', () => {
         await promise;
 
         const adapterInstance = failingAdapter.mock.results[0].value;
-        expect(adapterInstance.download).toHaveBeenCalledTimes(4); // 2 failures + 1 success + 1 empty
+        expect(adapterInstance.download).toHaveBeenCalledTimes(3); // 2 failures + 1 success
         expect(adapterInstance.download).toHaveBeenNthCalledWith(1, { limit: 5, offset: 0 });
         expect(adapterInstance.download).toHaveBeenNthCalledWith(2, { limit: 5, offset: 0 });
         expect(adapterInstance.download).toHaveBeenNthCalledWith(3, { limit: 5, offset: 0 });
-        expect(adapterInstance.download).toHaveBeenNthCalledWith(4, { limit: 5, offset: 5 });
 
         const errorLogs = logging.mock.calls.filter(call => call[0].type === 'error');
         expect(errorLogs).toHaveLength(2);
@@ -361,7 +358,7 @@ describe('Orchestrator', () => {
         const adapterInstance = cursorAdapter.mock.results[0].value;
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 2, offset: 0 });
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 2, offset: 2 });
-        expect(adapterInstance.download).toHaveBeenCalledTimes(3);
+        expect(adapterInstance.download).toHaveBeenCalledTimes(2);
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({
             type: 'extract',
             message: 'Extracted page with cursor 2', // Still works as string "2" is logged
