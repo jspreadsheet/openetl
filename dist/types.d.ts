@@ -1,20 +1,3 @@
-interface AxiosError {
-    response?: {
-        status: number;
-        data?: unknown;
-    };
-}
-
-function isAxiosError(error: unknown): error is AxiosError {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'response' in error &&
-        typeof (error as any).response === 'object'
-    );
-}
-
-// Auth Types
 export type BaseAuth = {
     id: string;
     type?: "api_key" | "oauth2" | "basic";
@@ -33,7 +16,6 @@ export type BaseAuth = {
     timeout?: number;
     expires_at?: string | number;
 };
-
 export type ApiKeyAuth = BaseAuth & {
     type: "api_key";
     credentials: {
@@ -42,7 +24,6 @@ export type ApiKeyAuth = BaseAuth & {
         [key: string]: string | undefined;
     };
 };
-
 export type OAuth2Auth = BaseAuth & {
     type: "oauth2";
     credentials: {
@@ -54,7 +35,6 @@ export type OAuth2Auth = BaseAuth & {
     };
     scopes?: string[];
 };
-
 export type BasicAuth = BaseAuth & {
     type: "basic";
     credentials: {
@@ -63,16 +43,11 @@ export type BasicAuth = BaseAuth & {
         host?: string | undefined;
         port?: string | undefined;
         database?: string | undefined;
-        [key: string]: string | undefined;  // Allow additional string properties
+        [key: string]: string | undefined;
     };
 };
-
 export type AuthConfig = ApiKeyAuth | OAuth2Auth | BasicAuth;
-
-// Add Vault type
 export type Vault = Record<string, AuthConfig>;
-
-// Adapter Types
 export interface BaseAdapter {
     id: string;
     name: string;
@@ -85,7 +60,6 @@ export interface BaseAdapter {
         [key: string]: any;
     };
 }
-
 export interface HttpAdapter extends BaseAdapter {
     type: "http";
     base_url: string;
@@ -97,116 +71,74 @@ export interface HttpAdapter extends BaseAdapter {
         supported_actions: Array<"download" | "upload" | "sync">;
     }>;
 }
-
 export interface DatabaseAdapter extends BaseAdapter {
     type: "database";
     endpoints: Array<{
         id: string;
         query_type: "table" | "custom";
         description?: string;
-        supported_actions: Array<"download" | "upload" | "sync">;  // Added "upload"
+        supported_actions: Array<"download" | "upload" | "sync">;
     }>;
 }
-
-// Connector Types
 export type Filter = {
     field: string;
     operator: string;
     value: string;
 };
-
 export type FilterGroup = {
     op: "AND" | "OR";
     filters: Array<Filter | FilterGroup>;
 };
-
 export type BaseTransformationOption = {
     to?: string;
 };
-
 export type ConcatOptions = BaseTransformationOption & {
     properties: string[];
     glue?: string;
 };
-
 export type RenameKeyOptions = BaseTransformationOption & {
     from: string;
 };
-
 export type FieldTransformationOptions = BaseTransformationOption & {
     field: string;
 };
-
 export type SplitOptions = FieldTransformationOptions & {
     delimiter: string;
 };
-
 export type ReplaceOptions = FieldTransformationOptions & {
     search: string;
     replace: string;
 };
-
 export type PrefixOptions = FieldTransformationOptions & {
     prefix: string;
 };
-
 export type SuffixOptions = FieldTransformationOptions & {
     suffix: string;
 };
-
 export type ExtractOptions = FieldTransformationOptions & {
     pattern?: string;
     start?: number;
     end?: number;
 };
-
 export type MergeObjectsOptions = BaseTransformationOption & {
     fields: string[];
 };
-
-export type TransformationType =
-    | 'concat'
-    | 'renameKey'
-    | 'uppercase'
-    | 'lowercase'
-    | 'trim'
-    | 'split'
-    | 'replace'
-    | 'addPrefix'
-    | 'addSuffix'
-    | 'toNumber'
-    | 'extract'
-    | 'mergeObjects'
-    | Function
-
-export type TransformationOption =
-    | ConcatOptions
-    | RenameKeyOptions
-    | FieldTransformationOptions
-    | SplitOptions
-    | ReplaceOptions
-    | PrefixOptions
-    | SuffixOptions
-    | ExtractOptions
-    | MergeObjectsOptions;
-
+export type TransformationType = 'concat' | 'renameKey' | 'uppercase' | 'lowercase' | 'trim' | 'split' | 'replace' | 'addPrefix' | 'addSuffix' | 'toNumber' | 'extract' | 'mergeObjects' | Function;
+export type TransformationOption = ConcatOptions | RenameKeyOptions | FieldTransformationOptions | SplitOptions | ReplaceOptions | PrefixOptions | SuffixOptions | ExtractOptions | MergeObjectsOptions;
 export type Transformation = {
     type: TransformationType;
     options: TransformationOption;
 };
-
 export type Sort = {
     type: 'asc' | 'desc';
     field: string;
 };
-
 export type Pagination = {
     type: "offset" | "cursor" | "page";
-    itemsPerPage?: number;       // Number of items per page
-    pageOffsetKey?: string;      // Initial offset as string
-    cursorKey?: string;          // Cursor token
+    itemsPerPage?: number;
+    pageOffsetKey?: string;
+    cursorKey?: string;
 };
-
 export interface Connector {
     id: string;
     adapter_id: string;
@@ -223,19 +155,16 @@ export interface Connector {
     filters?: Array<Filter | FilterGroup>;
     transform?: Transformation[];
     sort?: Sort[];
-    limit?: number;                    // Total items to fetch, defaults to 1M in core.ts if unset
+    limit?: number;
     pagination?: Pagination;
-    timeout?: number;                  // Maximum time in milliseconds for download process, defaults to 30s in core.ts if unset
+    timeout?: number;
 }
-
-// Pipeline Types
 export type PipelineEvent = {
     type: "start" | "extract" | "transform" | "load" | "error" | "complete" | "info";
     message: string;
     timestamp?: string;
     dataCount?: number;
 };
-
 export interface Pipeline<T = object> {
     id: string;
     data?: T[];
@@ -259,21 +188,21 @@ export interface Pipeline<T = object> {
         max_retries_on_rate_limit: number;
     };
 }
-
 export interface AdapterInstance {
     connect(): Promise<void>;
     disconnect?: () => Promise<void>;
-    download(pageOptions: { limit: number; offset: number }): Promise<{
+    download(pageOptions: {
+        limit: number;
+        offset: number;
+    }): Promise<{
         data: any[];
         options?: {
-            [key: string]: any; // Allow future extensions
+            [key: string]: any;
         };
     }>;
     upload?(data: any[]): Promise<void>;
 }
-
 export type Adapter = (connector: Connector, auth: AuthConfig) => AdapterInstance;
-
 export type Adapters = {
     [key: string]: Adapter;
 };
