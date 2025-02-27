@@ -93,6 +93,8 @@ describe('PostgreSQL Adapter', () => {
    * Tests SQL query building with filters, sorting, and pagination.
    */
   it('downloads data with filters, sorting, and pagination', async () => {
+    adapter.connect!();
+
     const mockRows = [
       { id: 1, name: 'Alice', email: 'alice@example.com' },
       { id: 2, name: 'Bob', email: 'bob@example.com' },
@@ -109,6 +111,9 @@ describe('PostgreSQL Adapter', () => {
   it('downloads all fields when none specified', async () => {
     const connectorNoFields = { ...connector, fields: [] };
     const adapterNoFields = postgresql(connectorNoFields, auth);
+
+    adapterNoFields.connect!();
+
     const mockRows = [{ id: 1, name: 'Alice', email: 'alice@example.com' }];
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
@@ -126,6 +131,9 @@ describe('PostgreSQL Adapter', () => {
       config: { ...connector.config, custom_query: 'SELECT * FROM custom_table WHERE id > 5' },
     };
     const customAdapter = postgresql(customConnector, auth);
+
+    customAdapter.connect!();
+
     const mockRows = [{ id: 6, name: 'Charlie' }];
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
@@ -141,6 +149,9 @@ describe('PostgreSQL Adapter', () => {
   it('uploads data successfully', async () => {
     const uploadConnector = { ...connector, endpoint_id: 'table_insert' };
     const uploadAdapter = postgresql(uploadConnector, auth);
+
+    uploadAdapter.connect!();
+
     const data = [
       { id: 1, name: 'Alice', email: 'alice@example.com' },
       { id: 2, name: 'Bob', email: 'bob@example.com' },
@@ -157,6 +168,9 @@ describe('PostgreSQL Adapter', () => {
   it('handles null values in upload', async () => {
     const uploadConnector = { ...connector, endpoint_id: 'table_insert' };
     const uploadAdapter = postgresql(uploadConnector, auth);
+
+    uploadAdapter.connect!();
+
     const data = [{ id: 1, name: null, email: 'alice@example.com' }];
 
     mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
@@ -194,11 +208,15 @@ describe('PostgreSQL Adapter', () => {
    * Ensures the connection pool is closed properly.
    */
   it('disconnects successfully', async () => {
+    adapter.connect!();
+
     await expect(adapter.disconnect!()).resolves.toBeUndefined();
     expect(mockPool.end).toHaveBeenCalled();
   });
 
   it('throws error on disconnect failure', async () => {
+    adapter.connect!();
+
     mockPool.end.mockRejectedValueOnce(new Error('Pool closure failed'));
     await expect(adapter.disconnect!()).rejects.toThrow('Pool closure failed');
   });
@@ -221,6 +239,9 @@ describe('PostgreSQL Adapter', () => {
       filters,
     };
     const adapterWithFilterGroup = postgresql(connectorWithFilterGroup, auth);
+
+    adapterWithFilterGroup.connect!();
+
     const mockRows = [{ id: 1, name: 'Admin', email: 'admin@example.com' }];
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 

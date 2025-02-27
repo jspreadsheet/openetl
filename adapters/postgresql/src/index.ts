@@ -41,29 +41,7 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
     return 'field' in filter && 'operator' in filter && 'value' in filter;
   }
 
-  // Define default config with port as a number
-  const defaultConfig = {
-    host: 'localhost',
-    database: 'postgres',
-    port: 5432, // Changed from "5432" (string) to 5432 (number)
-  };
-
-  // Construct config with port always as a number
-  const config = isBasicAuth(auth) ? {
-    user: auth.credentials.username,
-    password: auth.credentials.password,
-    host: auth.credentials.host || defaultConfig.host,
-    database: auth.credentials.database || defaultConfig.database,
-    port: auth.credentials.port !== undefined
-        ? parseInt(auth.credentials.port.toString(), 10)
-        : defaultConfig.port,
-  } : {
-    host: defaultConfig.host,
-    database: defaultConfig.database,
-    port: defaultConfig.port,
-  };
-
-  const pool = new Pool(config);
+  let pool: pg.Pool;
 
   function buildSelectQuery(customLimit?: number, customOffset?: number): string {
     if (endpoint.id === "custom_query" && connector.config?.custom_query) {
@@ -146,6 +124,27 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
       if (!isBasicAuth(auth)) {
         throw new Error("PostgreSQL adapter requires basic authentication");
       }
+
+      // Define default config with port as a number
+      const defaultConfig = {
+        host: 'localhost',
+        database: 'postgres',
+        port: 5432, // Changed from "5432" (string) to 5432 (number)
+      };
+
+      // Construct config with port always as a number
+      const config = {
+        user: auth.credentials.username,
+        password: auth.credentials.password,
+        host: auth.credentials.host || defaultConfig.host,
+        database: auth.credentials.database || defaultConfig.database,
+        port: auth.credentials.port !== undefined
+            ? parseInt(auth.credentials.port.toString(), 10)
+            : defaultConfig.port,
+      };
+
+      pool = new Pool(config);
+
       try {
         console.log("Testing connection to PostgreSQL...");
         const client = await pool.connect();
