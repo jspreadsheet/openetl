@@ -133,7 +133,7 @@ describe('Orchestrator', () => {
         const pipeline: Pipeline<any> = {
             id: 'rate-limit-test',
             source: mockConnector,
-            rate_limiting: { requests_per_second: 10, concurrent_requests: 1, max_retries_on_rate_limit: 0 },
+            rate_limiting: { requests_per_second: 10, max_retries_on_rate_limit: 0 },
             logging,
         };
 
@@ -300,7 +300,6 @@ describe('Orchestrator', () => {
             },
             rate_limiting: {
                 requests_per_second: 1,
-                concurrent_requests: 5,
                 max_retries_on_rate_limit: 3,
             },
             logging,

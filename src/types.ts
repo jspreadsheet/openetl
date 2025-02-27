@@ -255,7 +255,8 @@ export interface Pipeline<T = object> {
     };
     rate_limiting?: {
         requests_per_second: number;
-        concurrent_requests: number;
+        // To do
+        // concurrent_requests: number;
         max_retries_on_rate_limit: number;
     };
 }
