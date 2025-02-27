@@ -180,7 +180,11 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 // Get authentication
                 const auth = await getCredentials(pipeline.source);
                 sourceAdapter = Adapter(pipeline.source, auth);
-                await sourceAdapter.connect();
+
+                if (typeof sourceAdapter.connect === 'function') {
+                    await sourceAdapter.connect();
+                }
+
                 log({ type: 'info', message: 'Connected to source adapter' });
 
                 // In runPipeline
@@ -318,7 +322,11 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
 
                 const targetAuth = await getCredentials(pipeline.target);
                 targetAdapter = targetAdapterFactory(pipeline.target, targetAuth);
-                await targetAdapter.connect();
+
+                if (typeof targetAdapter.connect === 'function') {
+                    await targetAdapter.connect();
+                }
+
                 log({ type: 'info', message: 'Connected to target adapter' });
 
                 if (!targetAdapter.upload) {

@@ -62,7 +62,7 @@ describe('HubSpot Adapter', () => {
             data: { results: [] },
         });
 
-        await expect(adapter.connect()).resolves.toBeUndefined();
+        await expect(adapter.connect!()).resolves.toBeUndefined();
         expect(mockedAxios.get).toHaveBeenCalledWith(
             'https://api.hubapi.com/crm/v3/objects/contacts',
             expect.objectContaining({
@@ -87,7 +87,7 @@ describe('HubSpot Adapter', () => {
 
     it('throws error on connection failure', async () => {
         mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
-        await expect(adapter.connect()).rejects.toThrow('Failed to connect to HubSpot: Network error');
+        await expect(adapter.connect!()).rejects.toThrow('Failed to connect to HubSpot: Network error');
     });
 
     it('downloads data with cursor-based pagination', async () => {
