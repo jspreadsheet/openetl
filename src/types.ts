@@ -262,7 +262,7 @@ export interface Pipeline<T = object> {
 }
 
 export interface AdapterInstance {
-    connect(): Promise<void>;
+    connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
     download(pageOptions: { limit: number; offset: number }): Promise<{
         data: any[];

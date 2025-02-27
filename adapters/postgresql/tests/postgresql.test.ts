@@ -1,7 +1,7 @@
-import { postgresql, PostgresqlAdapter } from '../src/index'; // Adjust path as needed
+import { postgresql } from '../src/index'; // Adjust path as needed
 import pg from 'pg';
 import { Connector, AuthConfig, AdapterInstance } from '../../../src/types';
-import { FilterGroup } from '../src/types';
+import { FilterGroup } from 'openetl';
 
 jest.mock('pg');
 
@@ -77,7 +77,7 @@ describe('PostgreSQL Adapter', () => {
 
     mockPool.connect.mockResolvedValueOnce(mockResult);
 
-    await expect(adapter.connect()).resolves.toBeUndefined();
+    await expect(adapter.connect!()).resolves.toBeUndefined();
     expect(mockPool.connect).toHaveBeenCalled();
     expect(mockResult.query).toHaveBeenCalledWith('SELECT 1');
     expect(mockResult.release).toHaveBeenCalled();
@@ -85,7 +85,7 @@ describe('PostgreSQL Adapter', () => {
 
   it('throws error on connection failure', async () => {
     mockPool.connect.mockRejectedValueOnce(new Error('Connection refused'));
-    await expect(adapter.connect()).rejects.toThrow('Failed to connect to PostgreSQL: Connection refused');
+    await expect(adapter.connect!()).rejects.toThrow('Failed to connect to PostgreSQL: Connection refused');
   });
 
   /**
