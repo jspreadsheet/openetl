@@ -8,9 +8,9 @@
  * Fix: Add batch upload support for efficiency.
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from './types';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from 'openetl';
 
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 const HubSpotAdapter: HttpAdapter = {
   id: "hubspot-adapter",

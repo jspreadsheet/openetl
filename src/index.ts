@@ -396,3 +396,5 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
 }
 
 export { Orchestrator };
+
+export { DatabaseAdapter, BasicAuth, HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from './types'

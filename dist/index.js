@@ -77,7 +77,6 @@ function Orchestrator(vault, availableAdapters) {
                 if (access_token && auth.expires_at) {
                     const expiresAt = typeof auth.expires_at === 'string' ? new Date(auth.expires_at).getTime() : auth.expires_at;
                     if (expiresAt > Date.now()) {
-                        console.log(`Using existing valid access token for ${connector.id}`);
                         return auth; // Return early if token is still valid
                     }
                 }
@@ -225,8 +224,9 @@ function Orchestrator(vault, availableAdapters) {
                     if (pageData.length < itemsPerPage) {
                         log({
                             type: 'info',
-                            message: `Received ${pageData.length} items, less than ${itemsPerPage}, possibly last page`
+                            message: `Received ${pageData.length} items, less than ${itemsPerPage}, so it's the last page`
                         });
+                        break;
                     }
                     const previousOffset = pageOffset;
                     if (isCursorBased && pageResult.options?.nextOffset !== undefined) {
