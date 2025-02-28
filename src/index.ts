@@ -352,6 +352,9 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                     message: 'Data extraction complete',
                     dataCount: data.length
                 });
+
+                // Execute onload callback if specified
+                pipeline.onload?.(data);
             } else {
                 // Use provided data
                 data = pipeline.data!;
@@ -361,9 +364,6 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                     dataCount: data.length
                 });
             }
-
-            // Execute onload callback if specified
-            pipeline.onload?.(data);
 
             // Handle target operations
             if (pipeline.target) {
