@@ -137,7 +137,6 @@ export type Pagination = {
     type: "offset" | "cursor" | "page";
     itemsPerPage?: number;
     pageOffsetKey?: string;
-    cursorKey?: string;
 };
 export interface Connector {
     id: string;
@@ -184,12 +183,11 @@ export interface Pipeline<T = object> {
     };
     rate_limiting?: {
         requests_per_second: number;
-        concurrent_requests: number;
         max_retries_on_rate_limit: number;
     };
 }
 export interface AdapterInstance {
-    connect(): Promise<void>;
+    connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
     download(pageOptions: {
         limit: number;
