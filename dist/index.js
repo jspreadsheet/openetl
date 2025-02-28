@@ -39,6 +39,111 @@ const DEFAULT_CONFIG = {
     TOTAL_ITEMS_LIMIT: 1000000,
     TIMEOUT_MS: 30000,
 };
+async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartTime, timeoutMs, errorHandling, log) {
+    let result, attempt = 0;
+    do {
+        if (attempt > 0) {
+            await delay(errorHandling.retry_interval);
+        }
+        // Check for timeout
+        if (Date.now() - downloadStartTime >= timeoutMs) {
+            log({ type: 'error', message: `Download timeout exceeded (${timeoutMs}ms)` });
+            throw new Error('Download timeout exceeded');
+        }
+        try {
+            result = await sourceAdapter.download({
+                limit: itemsPerPage,
+                offset: typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset
+            });
+        }
+        catch (error) {
+            log({
+                type: 'error',
+                message: `Attempt ${attempt + 1} failed in download: ${error.message}`
+            });
+            if (errorHandling.fail_on_error) {
+                throw error;
+            }
+        }
+        attempt++;
+    } while (!result && attempt <= errorHandling.max_retries);
+    if (result) {
+        return result;
+    }
+    log({
+        type: 'error',
+        message: 'max_retries reached',
+    });
+    throw new Error('max_retries reached');
+}
+async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
+    const rl = pipeline.rate_limiting || {
+        requests_per_second: Infinity,
+        max_retries_on_rate_limit: 0
+    };
+    const minIntervalMs = rl.requests_per_second === Infinity
+        ? 0
+        : 1000 / rl.requests_per_second;
+    // Initialize pagination parameters
+    const itemsPerPage = pipeline.source.pagination?.itemsPerPage || DEFAULT_CONFIG.ITEMS_PER_PAGE;
+    const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
+    const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
+    const downloadStartTime = Date.now();
+    const isCursorBased = pipeline.source.pagination?.type === 'cursor';
+    let pageResult, fetchDataMoment, pageOffset = pipeline.source.pagination?.pageOffsetKey || '0'; // Start as string
+    let data = [];
+    do {
+        if (pageResult) {
+            if (isCursorBased && pageResult.options?.nextOffset !== undefined) {
+                pageOffset = pageResult.options.nextOffset; // Accept string or number
+                log({ type: 'info', message: `Next cursor set to ${pageOffset}` });
+            }
+            else {
+                pageOffset = (typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset) + itemsPerPage;
+                log({ type: 'info', message: `Next offset incremented to ${pageOffset}` });
+            }
+            // Apply rate limiting if configured
+            if (minIntervalMs > 0) {
+                const elapsedMs = Date.now() - fetchDataMoment;
+                const delayMs = Math.max(0, minIntervalMs - elapsedMs);
+                if (delayMs > 0) {
+                    log({ type: 'info', message: `Rate limiting: waiting ${delayMs}ms` });
+                    await delay(delayMs);
+                }
+            }
+        }
+        try {
+            fetchDataMoment = Date.now();
+            pageResult = await fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartTime, timeoutMs, errorHandling, log);
+        }
+        catch (error) {
+            if (error instanceof Error && error.message === 'Download timeout exceeded') {
+                break;
+            }
+            throw error;
+        }
+        // Process page data
+        data.push(...pageResult.data);
+        log({
+            type: 'extract',
+            message: `Extracted page${isCursorBased && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
+            dataCount: pageResult.data.length
+        });
+    } while (pageResult.data.length === itemsPerPage && data.length < totalItemsToFetch);
+    if (pageResult.data.length === 0) {
+        log({ type: 'info', message: 'No more data to fetch' });
+    }
+    else if (pageResult.data.length < itemsPerPage) {
+        log({
+            type: 'info',
+            message: `Received ${pageResult.data.length} items, less than ${itemsPerPage}, so it's the last page`
+        });
+    }
+    else if (data.length >= totalItemsToFetch) {
+        log({ type: 'info', message: `Reached total items limit of ${totalItemsToFetch}` });
+    }
+    return data;
+}
 /**
  * Creates an orchestrator instance for managing data pipelines
  * @param vault - Credential vault containing authentication configurations
@@ -146,14 +251,6 @@ function Orchestrator(vault, availableAdapters) {
             retry_interval: 1000,
             fail_on_error: true
         };
-        const rl = pipeline.rate_limiting || {
-            requests_per_second: Infinity,
-            concurrent_requests: Infinity,
-            max_retries_on_rate_limit: 0
-        };
-        const minIntervalMs = rl.requests_per_second === Infinity
-            ? 0
-            : 1000 / rl.requests_per_second;
         let data = [];
         log({ type: 'start', message: 'Pipeline started' });
         try {
@@ -166,91 +263,12 @@ function Orchestrator(vault, availableAdapters) {
                 // Get authentication
                 const auth = await getCredentials(pipeline.source);
                 sourceAdapter = Adapter(pipeline.source, auth);
-                await sourceAdapter.connect();
-                log({ type: 'info', message: 'Connected to source adapter' });
-                // In runPipeline
-                // Initialize pagination parameters
-                const itemsPerPage = pipeline.source.pagination?.itemsPerPage || DEFAULT_CONFIG.ITEMS_PER_PAGE;
-                let pageOffset = pipeline.source.pagination?.pageOffsetKey || '0'; // Start as string
-                const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
-                const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
-                const downloadStartTime = Date.now();
-                const isCursorBased = pipeline.source.pagination?.type === 'cursor';
-                // Fetch data in pages
-                while (true) {
-                    // Check for timeout
-                    if (Date.now() - downloadStartTime >= timeoutMs) {
-                        log({ type: 'error', message: `Download timeout exceeded (${timeoutMs}ms)` });
-                        break;
-                    }
-                    // Download page with retry logic
-                    let pageResult = null;
-                    const startTime = Date.now();
-                    for (let attempt = 0; attempt <= eh.max_retries; attempt++) {
-                        if (attempt > 0) {
-                            await delay(eh.retry_interval);
-                        }
-                        try {
-                            pageResult = await sourceAdapter.download({
-                                limit: itemsPerPage,
-                                offset: typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset
-                            });
-                            break;
-                        }
-                        catch (error) {
-                            log({
-                                type: 'error',
-                                message: `Attempt ${attempt + 1} failed in download: ${error.message}`
-                            });
-                            if (eh.fail_on_error) {
-                                throw error;
-                            }
-                        }
-                    }
-                    // Break if no more data
-                    if (!pageResult || pageResult.data.length === 0) {
-                        log({ type: 'info', message: 'No more data to fetch' });
-                        break;
-                    }
-                    // Process page data
-                    const pageData = pageResult.data;
-                    data.push(...pageData);
-                    log({
-                        type: 'extract',
-                        message: `Extracted page${isCursorBased && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
-                        dataCount: pageData.length
-                    });
-                    // Check for potential last page
-                    if (pageData.length < itemsPerPage) {
-                        log({
-                            type: 'info',
-                            message: `Received ${pageData.length} items, less than ${itemsPerPage}, so it's the last page`
-                        });
-                        break;
-                    }
-                    const previousOffset = pageOffset;
-                    if (isCursorBased && pageResult.options?.nextOffset !== undefined) {
-                        pageOffset = pageResult.options.nextOffset; // Accept string or number
-                        log({ type: 'info', message: `Next cursor set to ${pageOffset}` });
-                    }
-                    else {
-                        pageOffset = (typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset) + itemsPerPage;
-                        log({ type: 'info', message: `Next offset incremented to ${pageOffset}` });
-                    }
-                    if (data.length >= totalItemsToFetch) {
-                        log({ type: 'info', message: `Reached total items limit of ${totalItemsToFetch}` });
-                        break;
-                    }
-                    // Apply rate limiting if configured
-                    if (minIntervalMs > 0) {
-                        const elapsedMs = Date.now() - startTime;
-                        const delayMs = Math.max(0, minIntervalMs - elapsedMs);
-                        if (delayMs > 0) {
-                            log({ type: 'info', message: `Rate limiting: waiting ${delayMs}ms` });
-                            await delay(delayMs);
-                        }
-                    }
+                if (typeof sourceAdapter.connect === 'function') {
+                    await sourceAdapter.connect();
                 }
+                log({ type: 'info', message: 'Connected to source adapter' });
+                // Fetch data in pages
+                data = await getDataSerially(pipeline, sourceAdapter, eh, log);
                 // Transform data if specified
                 if (pipeline.source.transform && transform_1.default) {
                     data = await (0, transform_1.default)(pipeline.source, data);
@@ -288,7 +306,9 @@ function Orchestrator(vault, availableAdapters) {
                 }
                 const targetAuth = await getCredentials(pipeline.target);
                 targetAdapter = targetAdapterFactory(pipeline.target, targetAuth);
-                await targetAdapter.connect();
+                if (typeof targetAdapter.connect === 'function') {
+                    await targetAdapter.connect();
+                }
                 log({ type: 'info', message: 'Connected to target adapter' });
                 if (!targetAdapter.upload) {
                     throw new Error(`Upload not supported by adapter ${pipeline.target.adapter_id}`);
