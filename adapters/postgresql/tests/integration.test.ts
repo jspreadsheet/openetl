@@ -89,7 +89,7 @@ describe('PostgreSQL Adapter integration tests', () => {
       endpoint_id: "table_query",
       credential_id: "pg-auth",
       config: { schema: "public", table: "users" },
-      fields: ['name', 'email'],
+      fields: ['id', 'name', 'email'],
       filters: [{
         field: 'status',
         operator: '=',
@@ -201,6 +201,7 @@ describe('PostgreSQL Adapter integration tests', () => {
 
   it('uploads data successfully', async () => {
     connector.endpoint_id = 'table_insert';
+    connector.fields.shift();
 
     const data = [
       { name: 'Alice', email: 'alice@example.com' },
@@ -224,5 +225,55 @@ describe('PostgreSQL Adapter integration tests', () => {
         expect.objectContaining(data[1]),
       ]
     );
+  });
+
+  it('download and upload data successfully', async () => {
+    const expectedResult = [
+      { name: 'Alice', email: 'alice@example.com' },
+      { name: 'Bob', email: 'bob@example.com' },
+    ];
+
+    await insertUsers(expectedResult);
+
+    try {
+      await pool.query('DROP TABLE test;');
+    } catch (error) {}
+
+    await pool.query(`
+      CREATE TABLE public.test
+      (
+          id int NOT NULL,
+          email text NOT NULL,
+          name text NOT NULL,
+          status text DEFAULT 'active',
+          CONSTRAINT test_pkey PRIMARY KEY (id),
+          CONSTRAINT test_email_key UNIQUE (email)
+      );
+    `);
+
+    pipeline.target = {
+      id: "pg-customers-connector2",
+      adapter_id: "postgresql",
+      endpoint_id: "table_insert",
+      credential_id: "pg-auth",
+      config: { schema: "public", table: "test" },
+      fields: ['id', 'name', 'email'],
+      transform: [],
+      pagination: { type: 'offset', itemsPerPage: 10 },
+    };
+
+    await orchestrator.runPipeline(pipeline);
+
+    const usersTableRows = await pool.query(`
+      SELECT *
+      FROM users
+    `);
+
+    const testTableRows = await pool.query(`
+      SELECT *
+      FROM test
+    `);
+
+    expect(usersTableRows.rows).toEqual(testTableRows.rows);
   });
 });

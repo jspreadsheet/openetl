@@ -21,23 +21,32 @@ const cursorAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
     upload: jest.fn().mockResolvedValue(undefined),
 }));
 
+const downloadFunction = async ({ limit, offset }: { limit: number, offset: number }) => {
+    const startId = offset + 1;
+    const totalItems = 6;
+    const allData = Array.from(
+        { length: Math.min(limit, totalItems - offset) },
+        (_, i) => ({
+            id: startId + i,
+            name: `Item${startId + i}`,
+            created_at: `2025-02-21T${String(i).padStart(2, '0')}:00:00Z`,
+        })
+    );
+    return { data: offset < totalItems ? allData : [] };
+}
+
 const mockAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn((connector: Connector, auth: AuthConfig) => ({
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
-    download: jest.fn(async ({ limit, offset }) => {
-        const startId = offset + 1;
-        const totalItems = 6;
-        const allData = Array.from(
-            { length: Math.min(limit, totalItems - offset) },
-            (_, i) => ({
-                id: startId + i,
-                name: `Item${startId + i}`,
-                created_at: `2025-02-21T${String(i).padStart(2, '0')}:00:00Z`,
-            })
-        );
-        return { data: offset < totalItems ? allData : [] };
-    }),
+    download: jest.fn(downloadFunction),
     upload: jest.fn().mockResolvedValue(undefined),
+    transform: transformMock
+}));
+
+const adapterWithoutUpload: jest.Mock<ReturnType<Adapter>> = jest.fn((connector: Connector, auth: AuthConfig) => ({
+    connect: jest.fn().mockResolvedValue(undefined),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    download: jest.fn(downloadFunction),
     transform: transformMock
 }));
 
@@ -98,7 +107,7 @@ describe('Orchestrator', () => {
 
     beforeEach(() => {
         jest.useFakeTimers();
-        orchestrator = Orchestrator(mockVault, { mockAdapter: mockAdapter, failingAdapter: failingAdapter, cursorAdapter: cursorAdapter });
+        orchestrator = Orchestrator(mockVault, { mockAdapter: mockAdapter, failingAdapter: failingAdapter, cursorAdapter: cursorAdapter, adapterWithoutUpload });
         logging = jest.fn();
         jest.clearAllMocks();
         attemptCount = 0;
@@ -291,6 +300,7 @@ describe('Orchestrator', () => {
     });*/
 
     it('handles timeout correctly', async () => {
+        let requestedData;
 
         const pipeline: Pipeline<any> = {
             id: 'timeout-test',
@@ -301,6 +311,9 @@ describe('Orchestrator', () => {
             rate_limiting: {
                 requests_per_second: 1,
                 max_retries_on_rate_limit: 3,
+            },
+            onload: (data) => {
+                requestedData = data;
             },
             logging,
         };
@@ -313,6 +326,18 @@ describe('Orchestrator', () => {
             type: 'error',
             message: expect.stringContaining('timeout exceeded')
         }));
+
+        const expectedResult: any[] = [];
+        for (let i = 0; i < 5; i++) {
+            expectedResult.push(
+                expect.objectContaining({
+                    id: i + 1,
+                    name: 'Item' + (i + 1)
+                })
+            );
+        }
+
+        expect(requestedData).toEqual(expectedResult);
     });
 
 
@@ -328,10 +353,10 @@ describe('Orchestrator', () => {
 
         await expect(orchestrator.runPipeline(pipeline))
             .rejects
-            .toThrow('Credentials not found');
+            .toThrow('Credentials not found for id: non-existent');
     });
 
-    it('handles missing adapter', async () => {
+    it('handles missing source adapter', async () => {
         const pipeline: Pipeline<any> = {
             id: 'missing-adapter-test',
             source: {
@@ -344,6 +369,25 @@ describe('Orchestrator', () => {
         await expect(orchestrator.runPipeline(pipeline))
             .rejects
             .toThrow('Adapter non-existent not found');
+    });
+
+    it('handles missing target adapter', async () => {
+        const pipeline: Pipeline<any> = {
+            id: 'missing-adapter-test',
+            data: [{
+                id: 1,
+                name: 'Item1'
+            }],
+            target: {
+                ...mockConnector,
+                adapter_id: 'non-existent'
+            },
+            logging,
+        };
+
+        await expect(orchestrator.runPipeline(pipeline))
+            .rejects
+            .toThrow('Target adapter non-existent not found');
     });
 
     it('handles cursor-based pagination with HubSpot', async () => {
@@ -362,6 +406,136 @@ describe('Orchestrator', () => {
             type: 'extract',
             message: 'Extracted page with cursor 2', // Still works as string "2" is logged
             dataCount: 2
+        }));
+    });
+
+    it('handles pipeline without source or data', async () => {
+        const pipeline: Pipeline<any> = {
+            id: 'invalid-auth-test',
+        };
+
+        await expect(orchestrator.runPipeline(pipeline))
+            .rejects
+            .toThrow('Pipeline must have either a source or data');
+    });
+
+    it('item limit must be respected', async () => {
+        let requestedData;
+
+        const itemsLimit = 5;
+
+        const pipeline: Pipeline<any> = {
+            id: 'timeout-test',
+            source: {
+                ...mockConnector,
+                limit: itemsLimit,
+                pagination: {
+                    type: 'offset',
+                    itemsPerPage: 2,
+                }
+            },
+            onload: (data) => {
+                requestedData = data;
+            },
+            logging,
+        };
+
+        await orchestrator.runPipeline(pipeline);
+
+        expect(logging).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'info',
+            message: 'Reached total items limit of ' + itemsLimit,
+        }));
+
+        const expectedResult: any[] = [];
+        for (let i = 0; i < itemsLimit; i++) {
+            expectedResult.push(
+                expect.objectContaining({
+                    id: i + 1,
+                    name: 'Item' + (i + 1)
+                })
+            );
+        }
+
+        expect(requestedData).toEqual(expectedResult);
+    });
+
+    it('stop searching when the number of items returned is less than expected', async () => {
+        let requestedData;
+
+        const itemsPerPage = 7;
+
+        const pipeline: Pipeline<any> = {
+            id: 'timeout-test',
+            source: {
+                ...mockConnector,
+                pagination: {
+                    type: 'offset',
+                    itemsPerPage,
+                }
+            },
+            onload: (data) => {
+                requestedData = data;
+            },
+            logging,
+        };
+
+        await orchestrator.runPipeline(pipeline);
+
+        expect(logging).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'info',
+            message: `Received 6 items, less than ${itemsPerPage}, so it's the last page`,
+        }));
+
+        const expectedResult: any[] = [];
+        for (let i = 0; i < 6; i++) {
+            expectedResult.push(
+                expect.objectContaining({
+                    id: i + 1,
+                    name: 'Item' + (i + 1)
+                })
+            );
+        }
+
+        expect(requestedData).toEqual(expectedResult);
+    });
+
+    it('target does not upload data', async () => {
+        const pipeline: Pipeline<any> = {
+            id: 'target-without-upload-test',
+            data: [{
+                id: 1,
+                name: 'Item1'
+            }],
+            target: {
+                ...mockConnector,
+                adapter_id: 'adapterWithoutUpload'
+            },
+            logging,
+        };
+
+        await expect(orchestrator.runPipeline(pipeline))
+            .rejects
+            .toThrow('Upload not supported by adapter adapterWithoutUpload');
+    });
+
+    it('stop upload with onbeforesend event', async () => {
+        const pipeline: Pipeline<any> = {
+            id: 'upload-test',
+            source: mockConnector,
+            target: {
+                ...mockConnector,
+                id: 'mock-target'
+            },
+            onbeforesend: () => false,
+            logging,
+        };
+
+        await orchestrator.runPipeline(pipeline);
+
+        expect(logging).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'complete',
+            message: 'Pipeline halted by onbeforesend'
         }));
     });
 });
