@@ -175,15 +175,19 @@ async function getDataSerially<T>(
         });
     } while (pageResult.data.length === itemsPerPage && data.length < totalItemsToFetch);
 
-    if (pageResult!.data.length === 0) {
+    if (data.length >= totalItemsToFetch) {
+        if (data.length > totalItemsToFetch) {
+            data.splice(totalItemsToFetch, data.length - totalItemsToFetch)
+        }
+
+        log({ type: 'info', message: `Reached total items limit of ${totalItemsToFetch}` });
+    } else if (pageResult!.data.length === 0) {
         log({ type: 'info', message: 'No more data to fetch' });
     } else if (pageResult!.data.length < itemsPerPage) {
         log({
             type: 'info',
             message: `Received ${pageResult!.data.length} items, less than ${itemsPerPage}, so it's the last page`
         });
-    } else if (data.length >= totalItemsToFetch) {
-        log({ type: 'info', message: `Reached total items limit of ${totalItemsToFetch}` });
     }
 
     return data;
@@ -302,8 +306,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
 
         // Validate pipeline configuration
         if (!pipeline.source && !pipeline.data) {
-            log({ type: 'error', message: 'Pipeline must have either a source or data' });
-            return;
+            throw new Error('Pipeline must have either a source or data');
         }
 
         // Initialize configuration with defaults
