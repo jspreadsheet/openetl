@@ -204,7 +204,6 @@ export type Pagination = {
     type: "offset" | "cursor" | "page";
     itemsPerPage?: number;       // Number of items per page
     pageOffsetKey?: string;      // Initial offset as string
-    cursorKey?: string;          // Cursor token
 };
 
 export interface Connector {
