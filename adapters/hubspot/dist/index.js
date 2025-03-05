@@ -158,7 +158,7 @@ const HubSpotAdapter = {
         // Engagements (Activities)
         {
             id: "engagements",
-            path: "/engagements/v1/engagements",
+            path: "/engagements/v1/engagements/paged",
             method: "GET",
             description: "Retrieve all engagements (notes, emails, calls, etc.)",
             supported_actions: ["download", "sync"],
@@ -339,16 +339,22 @@ function hubspot(connector, auth) {
                     console.warn("Results is not an array or is undefined:", response.data);
                     return { data: [], options: { nextOffset: paging?.next?.after } };
                 }
-                const filteredResults = results.map((item) => {
-                    const filteredItem = {};
-                    connector.fields.forEach(field => {
-                        if (item.properties && item.properties[field] !== undefined && item.properties[field] !== null) {
-                            filteredItem[field] = item.properties[field];
-                        }
+                let filteredResults;
+                if (connector.fields.length > 0) {
+                    filteredResults = results.map((item) => {
+                        const filteredItem = {};
+                        connector.fields.forEach(field => {
+                            if (item.properties && item.properties[field] !== undefined && item.properties[field] !== null) {
+                                filteredItem[field] = item.properties[field];
+                            }
+                        });
+                        console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
+                        return filteredItem;
                     });
-                    console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
-                    return filteredItem;
-                });
+                }
+                else {
+                    filteredResults = results;
+                }
                 totalFetched += filteredResults.length;
                 return {
                     data: filteredResults,
