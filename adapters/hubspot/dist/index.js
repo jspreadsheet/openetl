@@ -27,13 +27,43 @@ var hubspot;
  * Issue: The upload function processes items sequentially with individual POST requests, which could be slow for large datasets. HubSpot supports batch endpoints (e.g., /crm/v3/objects/contacts/batch/create).
  * Fix: Add batch upload support for efficiency.
  */
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HubSpotAdapter = void 0;
 exports.hubspot = hubspot;
-const axios_1 = __importDefault(__webpack_require__(467));
+const axios_1 = __importStar(__webpack_require__(467));
 const HubSpotAdapter = {
     id: "hubspot-adapter",
     name: "HubSpot CRM Adapter",
@@ -57,7 +87,7 @@ const HubSpotAdapter = {
         },
         {
             id: "create-contact",
-            path: "/crm/v3/objects/contacts",
+            path: "/crm/v3/objects/contacts/batch/create",
             method: "POST",
             description: "Create a new contact in HubSpot",
             supported_actions: ["upload"],
@@ -71,7 +101,7 @@ const HubSpotAdapter = {
         },
         {
             id: "create-company",
-            path: "/crm/v3/objects/companies",
+            path: "/crm/v3/objects/companies/batch/create",
             method: "POST",
             description: "Create a new company in HubSpot",
             supported_actions: ["upload"],
@@ -85,7 +115,7 @@ const HubSpotAdapter = {
         },
         {
             id: "create-deal",
-            path: "/crm/v3/objects/deals",
+            path: "/crm/v3/objects/deals/batch/create",
             method: "POST",
             description: "Create a new deal in HubSpot",
             supported_actions: ["upload"],
@@ -99,7 +129,7 @@ const HubSpotAdapter = {
         },
         {
             id: "create-ticket",
-            path: "/crm/v3/objects/tickets",
+            path: "/crm/v3/objects/tickets/batch/create",
             method: "POST",
             description: "Create a new support ticket in HubSpot",
             supported_actions: ["upload"],
@@ -118,35 +148,35 @@ const HubSpotAdapter = {
             description: "Create a new product in HubSpot",
             supported_actions: ["upload"],
         },
-        // Marketing Endpoints
-        {
-            id: "marketing-emails",
-            path: "/marketing/v3/emails",
-            method: "GET",
-            description: "Retrieve all marketing emails from HubSpot",
-            supported_actions: ["download", "sync"],
-        },
-        {
-            id: "create-marketing-email",
-            path: "/marketing/v3/emails",
-            method: "POST",
-            description: "Create a new marketing email in HubSpot",
-            supported_actions: ["upload"],
-        },
-        {
-            id: "forms",
-            path: "/forms/v2/forms",
-            method: "GET",
-            description: "Retrieve all forms from HubSpot",
-            supported_actions: ["download", "sync"],
-        },
-        {
-            id: "create-form",
-            path: "/forms/v2/forms",
-            method: "POST",
-            description: "Create a new form in HubSpot",
-            supported_actions: ["upload"],
-        },
+        // // Marketing Endpoints
+        // {
+        //   id: "marketing-emails",
+        //   path: "/marketing/v3/emails",
+        //   method: "GET",
+        //   description: "Retrieve all marketing emails from HubSpot",
+        //   supported_actions: ["download", "sync"],
+        // },
+        // {
+        //   id: "create-marketing-email",
+        //   path: "/marketing/v3/emails",
+        //   method: "POST",
+        //   description: "Create a new marketing email in HubSpot",
+        //   supported_actions: ["upload"],
+        // },
+        // {
+        //   id: "forms",
+        //   path: "/forms/v2/forms",
+        //   method: "GET",
+        //   description: "Retrieve all forms from HubSpot",
+        //   supported_actions: ["download", "sync"],
+        // },
+        // {
+        //   id: "create-form",
+        //   path: "/forms/v2/forms",
+        //   method: "POST",
+        //   description: "Create a new form in HubSpot",
+        //   supported_actions: ["upload"],
+        // },
         // Analytics Endpoints
         {
             id: "analytics-events",
@@ -155,21 +185,21 @@ const HubSpotAdapter = {
             description: "Retrieve analytics events from HubSpot",
             supported_actions: ["download", "sync"],
         },
-        // Engagements (Activities)
-        {
-            id: "engagements",
-            path: "/engagements/v1/engagements/paged",
-            method: "GET",
-            description: "Retrieve all engagements (notes, emails, calls, etc.)",
-            supported_actions: ["download", "sync"],
-        },
-        {
-            id: "create-engagement",
-            path: "/engagements/v1/engagements",
-            method: "POST",
-            description: "Create a new engagement (e.g., note, email, call)",
-            supported_actions: ["upload"],
-        },
+        // // Engagements (Activities)
+        // {
+        //   id: "engagements",
+        //   path: "/engagements/v1/engagements/paged",
+        //   method: "GET",
+        //   description: "Retrieve all engagements (notes, emails, calls, etc.)",
+        //   supported_actions: ["download", "sync"],
+        // },
+        // {
+        //   id: "create-engagement",
+        //   path: "/engagements/v1/engagements",
+        //   method: "POST",
+        //   description: "Create a new engagement (e.g., note, email, call)",
+        //   supported_actions: ["upload"],
+        // },
         // Pipelines
         {
             id: "pipelines",
@@ -390,15 +420,25 @@ function hubspot(connector, auth) {
         },
         upload: async function (data) {
             const config = await buildRequestConfig();
-            for (const item of data) {
-                try {
-                    await axios_1.default.post(`${HubSpotAdapter.base_url}${endpoint.path}`, item, config);
+            try {
+                await axios_1.default.post(`${HubSpotAdapter.base_url}${endpoint.path}`, {
+                    inputs: data,
+                }, config);
+            }
+            catch (error) {
+                let errorMessage;
+                if (!(error instanceof Error)) {
+                    errorMessage = 'Unknown error';
                 }
-                catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                    console.error("Upload error:", errorMessage);
-                    throw error;
+                else if ((0, axios_1.isAxiosError)(error) && error.response?.data.message) {
+                    errorMessage = error.response?.data.message;
+                    error = new Error(errorMessage);
                 }
+                else {
+                    errorMessage = error.message;
+                }
+                console.error("Upload error:", errorMessage);
+                throw error;
             }
         },
         disconnect: async function () {

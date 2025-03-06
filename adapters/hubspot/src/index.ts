@@ -10,7 +10,7 @@
 
 import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from 'openetl';
 
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
 
 const HubSpotAdapter: HttpAdapter = {
   id: "hubspot-adapter",
@@ -35,7 +35,7 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "create-contact",
-      path: "/crm/v3/objects/contacts",
+      path: "/crm/v3/objects/contacts/batch/create",
       method: "POST",
       description: "Create a new contact in HubSpot",
       supported_actions: ["upload"],
@@ -49,7 +49,7 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "create-company",
-      path: "/crm/v3/objects/companies",
+      path: "/crm/v3/objects/companies/batch/create",
       method: "POST",
       description: "Create a new company in HubSpot",
       supported_actions: ["upload"],
@@ -63,7 +63,7 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "create-deal",
-      path: "/crm/v3/objects/deals",
+      path: "/crm/v3/objects/deals/batch/create",
       method: "POST",
       description: "Create a new deal in HubSpot",
       supported_actions: ["upload"],
@@ -77,7 +77,7 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "create-ticket",
-      path: "/crm/v3/objects/tickets",
+      path: "/crm/v3/objects/tickets/batch/create",
       method: "POST",
       description: "Create a new support ticket in HubSpot",
       supported_actions: ["upload"],
@@ -97,35 +97,35 @@ const HubSpotAdapter: HttpAdapter = {
       supported_actions: ["upload"],
     },
 
-    // Marketing Endpoints
-    {
-      id: "marketing-emails",
-      path: "/marketing/v3/emails",
-      method: "GET",
-      description: "Retrieve all marketing emails from HubSpot",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-marketing-email",
-      path: "/marketing/v3/emails",
-      method: "POST",
-      description: "Create a new marketing email in HubSpot",
-      supported_actions: ["upload"],
-    },
-    {
-      id: "forms",
-      path: "/forms/v2/forms",
-      method: "GET",
-      description: "Retrieve all forms from HubSpot",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-form",
-      path: "/forms/v2/forms",
-      method: "POST",
-      description: "Create a new form in HubSpot",
-      supported_actions: ["upload"],
-    },
+    // // Marketing Endpoints
+    // {
+    //   id: "marketing-emails",
+    //   path: "/marketing/v3/emails",
+    //   method: "GET",
+    //   description: "Retrieve all marketing emails from HubSpot",
+    //   supported_actions: ["download", "sync"],
+    // },
+    // {
+    //   id: "create-marketing-email",
+    //   path: "/marketing/v3/emails",
+    //   method: "POST",
+    //   description: "Create a new marketing email in HubSpot",
+    //   supported_actions: ["upload"],
+    // },
+    // {
+    //   id: "forms",
+    //   path: "/forms/v2/forms",
+    //   method: "GET",
+    //   description: "Retrieve all forms from HubSpot",
+    //   supported_actions: ["download", "sync"],
+    // },
+    // {
+    //   id: "create-form",
+    //   path: "/forms/v2/forms",
+    //   method: "POST",
+    //   description: "Create a new form in HubSpot",
+    //   supported_actions: ["upload"],
+    // },
 
     // Analytics Endpoints
     {
@@ -136,21 +136,21 @@ const HubSpotAdapter: HttpAdapter = {
       supported_actions: ["download", "sync"],
     },
 
-    // Engagements (Activities)
-    {
-      id: "engagements",
-      path: "/engagements/v1/engagements/paged",
-      method: "GET",
-      description: "Retrieve all engagements (notes, emails, calls, etc.)",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-engagement",
-      path: "/engagements/v1/engagements",
-      method: "POST",
-      description: "Create a new engagement (e.g., note, email, call)",
-      supported_actions: ["upload"],
-    },
+    // // Engagements (Activities)
+    // {
+    //   id: "engagements",
+    //   path: "/engagements/v1/engagements/paged",
+    //   method: "GET",
+    //   description: "Retrieve all engagements (notes, emails, calls, etc.)",
+    //   supported_actions: ["download", "sync"],
+    // },
+    // {
+    //   id: "create-engagement",
+    //   path: "/engagements/v1/engagements",
+    //   method: "POST",
+    //   description: "Create a new engagement (e.g., note, email, call)",
+    //   supported_actions: ["upload"],
+    // },
 
     // Pipelines
     {
@@ -389,14 +389,30 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
 
         upload: async function(data: any[]): Promise<void> {
             const config = await buildRequestConfig();
-            for (const item of data) {
-                try {
-                    await axios.post(`${HubSpotAdapter.base_url}${endpoint.path}`, item, config);
-                } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                    console.error("Upload error:", errorMessage);
-                    throw error;
+
+            try {
+                await axios.post(
+                    `${HubSpotAdapter.base_url}${endpoint.path}`,
+                    {
+                        inputs: data,
+                    },
+                    config
+                );
+            } catch (error) {
+                let errorMessage;
+
+                if (!(error instanceof Error)) {
+                    errorMessage = 'Unknown error';
+                } else if (isAxiosError(error) && error.response?.data.message) {
+                    errorMessage = error.response?.data.message;
+
+                    error = new Error(errorMessage);
+                } else {
+                    errorMessage = error.message;
                 }
+
+                console.error("Upload error:", errorMessage);
+                throw error;
             }
         },
         disconnect: async function(): Promise<void> {
