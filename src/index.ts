@@ -430,6 +430,8 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                         dataCount: batch.length
                     });
                 }
+
+                pipeline.onupload?.();
             }
 
             log({ type: 'complete', message: 'Pipeline finished' });

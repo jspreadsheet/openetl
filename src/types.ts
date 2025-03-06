@@ -247,6 +247,7 @@ export interface Pipeline<T = object> {
     logging?: (event: PipelineEvent) => void;
     onload?: (data: T[]) => void;
     onbeforesend?: (data: T[]) => T[] | boolean | void;
+    onupload?: () => void;
     error_handling?: {
         max_retries: number;
         retry_interval: number;

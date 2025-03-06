@@ -344,6 +344,7 @@ function Orchestrator(vault, availableAdapters) {
                         dataCount: batch.length
                     });
                 }
+                pipeline.onupload?.();
             }
             log({ type: 'complete', message: 'Pipeline finished' });
         }
