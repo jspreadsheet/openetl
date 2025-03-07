@@ -1,5 +1,5 @@
 /package-lock.json
-/node_modules/
+node_modules/
 /adapters/hubspot/node_modules/
 /adapters/hubspot/package-lock.json
 /adapters/postgresql/package-lock.json

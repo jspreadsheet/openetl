@@ -1,0 +1,20 @@
+{
+  "name": "@openetl/google-ads",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx webpack --config webpack.config.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.2",
+    "google-auth-library": "^9.15.1",
+    "jsuites": "^5.9.1"
+  },
+  "devDependencies": {
+    "openetl": "file:../.."
+  }
+}
