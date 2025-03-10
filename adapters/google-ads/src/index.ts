@@ -9,16 +9,31 @@ import jsuites from 'jsuites';
 import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, Filter, FilterGroup, OAuth2Auth } from 'openetl';
 
 const baseUrl = "https://googleads.googleapis.com/v19";
-const customerId = '9993315554';
-const loginCustomerId = '5401287074';
-const developerToken = 'SCnYdMFo64q7kqBuWF4zjA';
 
 const GoogleAdsAdapter: DatabaseAdapter = {
   id: "google-ads",
   name: "Google Ads API Adapter",
   type: "database",
   action: ["download"],
-  credential_type: "basic",
+  credential_type: "oauth2",
+  config: [
+    {
+      name: 'table',
+      required: true,
+    },
+    {
+      name: 'customerId',
+      required: true,
+    },
+    {
+      name: 'loginCustomerId',
+      required: false,
+    },
+    {
+      name: 'developerToken',
+      required: true,
+    },
+  ],
   metadata: {
     provider: "google-ads",
     description: "Adapter for Google Ads API operations",
@@ -76,14 +91,19 @@ function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
           await refreshOAuthToken();
       }
 
+      const headers: Record<string, any> = {
+        'Authorization': `Bearer ${auth.credentials.access_token}`,
+        'Content-Type': 'application/json',
+        'developer-token': connector.config!.developerToken,
+        ...connector.config?.headers,
+      };
+
+      if (connector.config?.loginCustomerId) {
+        headers['login-customer-id'] = connector.config.loginCustomerId;
+      }
+
       return {
-          headers: {
-              'Authorization': `Bearer ${auth.credentials.access_token}`,
-              'Content-Type': 'application/json',
-              'developer-token': developerToken,
-              'login-customer-id': loginCustomerId,
-              ...connector.config?.headers,
-          },
+          headers,
           params: {
               ...connector.config?.query_params,
           },
@@ -147,13 +167,21 @@ function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error("Table_insert endpoint only supported for upload");
       }
 
+      if (!connector.config?.customerId) {
+        throw new Error("customerId required");
+      }
+
+      if (!connector.config?.developerToken) {
+        throw new Error("developerToken required");
+      }
+
       const config = await buildRequestConfig();
 
       const query = buildSelectQuery(pageOptions.limit);
 
       try {
         const response = await axios.post(
-          `${baseUrl}/customers/${customerId}/googleAds:search`,
+          `${baseUrl}/customers/${connector.config.customerId}/googleAds:search`,
           {
             query
           },

@@ -79,6 +79,11 @@ export interface BaseAdapter {
     type: "http" | "database" | "file";
     action: Array<"download" | "upload" | "sync">;
     credential_type: "api_key" | "oauth2" | "basic";
+    config: {
+        name: string,
+        required: boolean,
+        default?: any,
+    }[],
     metadata?: {
         description?: string;
         provider?: string;
@@ -217,6 +222,8 @@ export interface Connector {
         schema?: string;
         table?: string;
         custom_query?: string;
+
+        [key: string]: any;
     };
     fields: string[];
     filters?: Array<Filter | FilterGroup>;
