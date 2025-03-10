@@ -3,10 +3,6 @@ if (! axios && typeof(require) === 'function') {
     var axios = require('axios');
 }
 
-if (! jsuites && typeof(require) === 'function') {
-    var jsuites = require('jsuites');
-}
-
 ;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
@@ -33,7 +29,6 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GoogleAdsAdapter = void 0;
 exports.googleAds = googleAds;
 const axios_1 = __importDefault(__webpack_require__(467));
-const jsuites_1 = __importDefault(__webpack_require__(321));
 const baseUrl = "https://googleads.googleapis.com/v19";
 const GoogleAdsAdapter = {
     id: "google-ads",
@@ -70,6 +65,53 @@ const GoogleAdsAdapter = {
     ],
 };
 exports.GoogleAdsAdapter = GoogleAdsAdapter;
+function path(str, val, remove) {
+    const properties = str.split('.');
+    if (properties.length) {
+        let o = this;
+        while (properties.length > 1) {
+            // Get the property
+            const p = properties.shift();
+            // Check if the property exists
+            if (o.hasOwnProperty(p)) {
+                o = o[p];
+            }
+            else {
+                // Property does not exists
+                if (typeof (val) === 'undefined') {
+                    return undefined;
+                }
+                else {
+                    // Create the property
+                    o[p] = {};
+                    // Next property
+                    o = o[p];
+                }
+            }
+        }
+        // Get the property
+        const p = properties.shift();
+        // Set or get the value
+        if (typeof (val) !== 'undefined') {
+            if (remove === true) {
+                delete o[p];
+            }
+            else {
+                o[p] = val;
+            }
+            // Success
+            return true;
+        }
+        else {
+            // Return the value
+            if (o) {
+                return o[p];
+            }
+        }
+    }
+    // Something went wrong
+    return false;
+}
 function googleAds(connector, auth) {
     const endpoint = GoogleAdsAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
@@ -194,9 +236,9 @@ function googleAds(connector, auth) {
                         const filteredItem = {};
                         connector.fields.forEach(field => {
                             if (item) {
-                                const value = jsuites_1.default.path.call(item, field);
+                                const value = path.call(item, field);
                                 if (value !== undefined && value !== null) {
-                                    jsuites_1.default.path.call(filteredItem, field, value);
+                                    path.call(filteredItem, field, value);
                                 }
                             }
                         });
@@ -239,13 +281,6 @@ function googleAds(connector, auth) {
 /***/ ((module) => {
 
 module.exports = axios;
-
-/***/ }),
-
-/***/ 321:
-/***/ ((module) => {
-
-module.exports = jsuites;
 
 /***/ })
 

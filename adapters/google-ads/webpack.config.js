@@ -21,10 +21,6 @@ if (! axios && typeof(require) === 'function') {
     var axios = require('axios');
 }
 
-if (! jsuites && typeof(require) === 'function') {
-    var jsuites = require('jsuites');
-}
-
 ;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
@@ -48,7 +44,6 @@ if (! jsuites && typeof(require) === 'function') {
 
 let dependencies = {
     axios: "axios",
-    jsuites: "jsuites"
 }
 
 const webpack = {

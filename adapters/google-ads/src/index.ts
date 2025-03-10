@@ -4,7 +4,6 @@
  */
 
 import axios from 'axios';
-import jsuites from 'jsuites';
 
 import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, Filter, FilterGroup, OAuth2Auth } from 'openetl';
 
@@ -44,6 +43,50 @@ const GoogleAdsAdapter: DatabaseAdapter = {
     { id: "custom_query", query_type: "custom", description: "Run a custom query", supported_actions: ["download"] },
   ],
 };
+
+function path(this: Record<string, any>, str: string, val?: any, remove?: boolean) {
+  const properties = str.split('.');
+  if (properties.length) {
+      let o = this;
+      while (properties.length > 1) {
+          // Get the property
+          const p = (properties.shift() as string);
+          // Check if the property exists
+          if (o.hasOwnProperty(p)) {
+              o = o[p];
+          } else {
+              // Property does not exists
+              if (typeof(val) === 'undefined') {
+                  return undefined;
+              } else {
+                  // Create the property
+                  o[p] = {};
+                  // Next property
+                  o = o[p];
+              }
+          }
+      }
+      // Get the property
+      const p = (properties.shift() as string);
+      // Set or get the value
+      if (typeof(val) !== 'undefined') {
+          if (remove === true) {
+              delete o[p];
+          } else {
+              o[p] = val;
+          }
+          // Success
+          return true;
+      } else {
+          // Return the value
+          if (o) {
+              return o[p];
+          }
+      }
+  }
+  // Something went wrong
+  return false;
+}
 
 function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
   const endpoint = GoogleAdsAdapter.endpoints.find(e => e.id === connector.endpoint_id)!;
@@ -202,10 +245,10 @@ function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
                 const filteredItem: Record<string, any> = {};
                 connector.fields.forEach(field => {
                     if (item) {
-                        const value = jsuites.path.call(item, field);
+                        const value = path.call(item, field);
 
                         if (value !== undefined && value !== null) {
-                          jsuites.path.call(filteredItem, field, value);
+                          path.call(filteredItem, field, value);
                         }
                     }
                 });
