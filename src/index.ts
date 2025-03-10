@@ -292,7 +292,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
      * @param pipeline - Pipeline configuration and callbacks
      * @throws Error if pipeline execution fails and fail_on_error is true
      */
-    async function runPipeline<T>(pipeline: Pipeline<T>): Promise<void> {
+    async function runPipeline<T>(pipeline: Pipeline<T>): Promise<{ data: T[] }> {
         let sourceAdapter: ReturnType<Adapter> | undefined;
         let targetAdapter: ReturnType<Adapter> | undefined;
 
@@ -374,7 +374,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 const beforeSendResult = pipeline.onbeforesend?.(data);
                 if (beforeSendResult === false) {
                     log({ type: 'complete', message: 'Pipeline halted by onbeforesend' });
-                    return;
+                    return { data };
                 }
 
                 const finalData = Array.isArray(beforeSendResult) ? beforeSendResult : data;
@@ -460,6 +460,8 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 // Don't throw cleanup errors if the main operation succeeded
             }
         }
+
+        return { data }
     }
 
     // Register provided adapters
