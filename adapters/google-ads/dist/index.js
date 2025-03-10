@@ -46,13 +46,17 @@ const GoogleAdsAdapter = {
             required: true,
         },
         {
+            name: 'developerToken',
+            required: true,
+        },
+        {
             name: 'loginCustomerId',
             required: false,
         },
         {
-            name: 'developerToken',
-            required: true,
-        },
+            name: 'custom_query',
+            required: false,
+        }
     ],
     metadata: {
         provider: "google-ads",
