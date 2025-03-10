@@ -14,6 +14,21 @@ const PostgresqlAdapter: DatabaseAdapter = {
   name: "PostgreSQL Database Adapter",
   type: "database",
   action: ["download", "upload", "sync"],
+  config: [
+    {
+      name: 'schema',
+      required: false,
+      default: 'public',
+    },
+    {
+      name: 'table',
+      required: true,
+    },
+    {
+      name: 'custom_query',
+      required: false,
+    },
+  ],
   credential_type: "basic",
   metadata: {
     provider: "postgresql",

@@ -19,6 +19,16 @@ const HubSpotAdapter: HttpAdapter = {
   action: ["download", "upload", "sync"],
   credential_type: "oauth2", // Update to reflect actual usage
   base_url: "https://api.hubapi.com",
+  config: [
+    {
+        name: 'headers',
+        required: false,
+    },
+    {
+        name: 'query_params',
+        required: false,
+    },
+  ],
   metadata: {
     provider: "hubspot",
     description: "Adapter for HubSpot CRM and Marketing APIs",

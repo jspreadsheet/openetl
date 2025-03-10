@@ -298,7 +298,7 @@ function Orchestrator(vault, availableAdapters) {
                 const beforeSendResult = pipeline.onbeforesend?.(data);
                 if (beforeSendResult === false) {
                     log({ type: 'complete', message: 'Pipeline halted by onbeforesend' });
-                    return;
+                    return { data };
                 }
                 const finalData = Array.isArray(beforeSendResult) ? beforeSendResult : data;
                 // Initialize target adapter
@@ -374,6 +374,7 @@ function Orchestrator(vault, availableAdapters) {
                 // Don't throw cleanup errors if the main operation succeeded
             }
         }
+        return { data };
     }
     // Register provided adapters
     Object.entries(availableAdapters).forEach(([id, adapter]) => {

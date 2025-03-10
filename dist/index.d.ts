@@ -11,7 +11,9 @@ import { Pipeline, Adapter, Adapters, Vault } from './types';
  */
 declare function Orchestrator(vault: Vault, availableAdapters: Adapters): {
     registerAdapter: (id: string, adapter: Adapter) => void;
-    runPipeline: <T>(pipeline: Pipeline<T>) => Promise<void>;
+    runPipeline: <T>(pipeline: Pipeline<T>) => Promise<{
+        data: T[];
+    }>;
 };
 export { Orchestrator };
 export { DatabaseAdapter, BasicAuth, HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from './types';

@@ -35,6 +35,21 @@ const PostgresqlAdapter = {
     name: "PostgreSQL Database Adapter",
     type: "database",
     action: ["download", "upload", "sync"],
+    config: [
+        {
+            name: 'schema',
+            required: false,
+            default: 'public',
+        },
+        {
+            name: 'table',
+            required: true,
+        },
+        {
+            name: 'custom_query',
+            required: false,
+        },
+    ],
     credential_type: "basic",
     metadata: {
         provider: "postgresql",
@@ -59,27 +74,7 @@ function postgresql(connector, auth) {
     function isFilter(filter) {
         return 'field' in filter && 'operator' in filter && 'value' in filter;
     }
-    // Define default config with port as a number
-    const defaultConfig = {
-        host: 'localhost',
-        database: 'postgres',
-        port: 5432, // Changed from "5432" (string) to 5432 (number)
-    };
-    // Construct config with port always as a number
-    const config = isBasicAuth(auth) ? {
-        user: auth.credentials.username,
-        password: auth.credentials.password,
-        host: auth.credentials.host || defaultConfig.host,
-        database: auth.credentials.database || defaultConfig.database,
-        port: auth.credentials.port !== undefined
-            ? parseInt(auth.credentials.port.toString(), 10)
-            : defaultConfig.port,
-    } : {
-        host: defaultConfig.host,
-        database: defaultConfig.database,
-        port: defaultConfig.port,
-    };
-    const pool = new Pool(config);
+    let pool;
     function buildSelectQuery(customLimit, customOffset) {
         if (endpoint.id === "custom_query" && connector.config?.custom_query) {
             return connector.config.custom_query;
@@ -129,7 +124,13 @@ function postgresql(connector, auth) {
         const values = data.map(row => {
             const rowValues = fields.map(field => {
                 const value = row[field];
-                return value === null || value === undefined ? 'NULL' : `'${value.toString().replace(/'/g, "''")}'`;
+                if (value === null || typeof value === 'undefined') {
+                    return 'NULL';
+                }
+                if (typeof value === 'number') {
+                    return value.toString();
+                }
+                return `'${value.toString().replace(/'/g, "''")}'`;
             });
             return `(${rowValues.join(', ')})`;
         });
@@ -140,6 +141,23 @@ function postgresql(connector, auth) {
             if (!isBasicAuth(auth)) {
                 throw new Error("PostgreSQL adapter requires basic authentication");
             }
+            // Define default config with port as a number
+            const defaultConfig = {
+                host: 'localhost',
+                database: 'postgres',
+                port: 5432, // Changed from "5432" (string) to 5432 (number)
+            };
+            // Construct config with port always as a number
+            const config = {
+                user: auth.credentials.username,
+                password: auth.credentials.password,
+                host: auth.credentials.host || defaultConfig.host,
+                database: auth.credentials.database || defaultConfig.database,
+                port: auth.credentials.port !== undefined
+                    ? parseInt(auth.credentials.port.toString(), 10)
+                    : defaultConfig.port,
+            };
+            pool = new Pool(config);
             try {
                 console.log("Testing connection to PostgreSQL...");
                 const client = await pool.connect();
