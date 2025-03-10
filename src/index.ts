@@ -128,8 +128,8 @@ async function getDataSerially<T>(
 
     do {
         if (pageResult) {
-            if (isCursorBased && pageResult.options?.nextOffset !== undefined) {
-                pageOffset = pageResult.options.nextOffset; // Accept string or number
+            if (isCursorBased) {
+                pageOffset = pageResult.options!.nextOffset; // Accept string or number
                 log({ type: 'info', message: `Next cursor set to ${pageOffset}` });
             } else {
                 pageOffset = (typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset) + itemsPerPage;
@@ -173,7 +173,12 @@ async function getDataSerially<T>(
             message: `Extracted page${isCursorBased && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
             dataCount: pageResult.data.length
         });
-    } while (pageResult.data.length === itemsPerPage && data.length < totalItemsToFetch);
+    } while (
+        data.length < totalItemsToFetch &&
+        isCursorBased
+            ? pageResult.options?.nextOffset !== undefined
+            : pageResult.data.length === itemsPerPage
+    );
 
     if (data.length >= totalItemsToFetch) {
         if (data.length > totalItemsToFetch) {
