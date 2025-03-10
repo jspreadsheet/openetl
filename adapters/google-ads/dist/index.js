@@ -65,7 +65,7 @@ const GoogleAdsAdapter = {
         version: "1.0",
     },
     endpoints: [
-        { id: "table_query", query_type: "table", description: "Query a specific table", supported_actions: ["download"] },
+        { id: "table_query", query_type: "table", description: "Query a specific table", supported_actions: ["download"], pagination: false },
         { id: "custom_query", query_type: "custom", description: "Run a custom query", supported_actions: ["download"] },
     ],
 };
