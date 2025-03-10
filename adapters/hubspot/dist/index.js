@@ -244,7 +244,6 @@ function hubspot(connector, auth) {
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
     }
-    let totalFetched = 0;
     function isOAuth2Auth(auth) {
         return auth.type === 'oauth2';
     }
@@ -358,16 +357,8 @@ function hubspot(connector, auth) {
         },
         download: async function (pageOptions) {
             const config = await buildRequestConfig();
-            const pageLimit = Math.min(pageOptions.limit, 100);
-            const totalLimit = connector.limit || Number.MAX_SAFE_INTEGER;
-            const remainingLimit = totalLimit - totalFetched;
-            const effectiveLimit = Math.min(pageLimit, remainingLimit);
-            let after = pageOptions.offset > 0 ? pageOptions.offset.toString() : undefined;
-            if (effectiveLimit <= 0) {
-                console.log("Effective limit reached, returning empty result");
-                return { data: [], options: { nextOffset: undefined } };
-            }
-            config.params.limit = effectiveLimit;
+            config.params.limit = Math.min(pageOptions.limit, 100);
+            const after = pageOptions.offset > 0 ? pageOptions.offset.toString() : undefined;
             if (after) {
                 config.params.after = after;
             }
@@ -395,11 +386,10 @@ function hubspot(connector, auth) {
                 else {
                     filteredResults = results;
                 }
-                totalFetched += filteredResults.length;
                 return {
                     data: filteredResults,
                     options: {
-                        nextOffset: totalFetched < totalLimit && paging?.next?.after ? paging.next.after : undefined,
+                        nextOffset: paging?.next?.after ? paging.next.after : undefined,
                     },
                 };
             }

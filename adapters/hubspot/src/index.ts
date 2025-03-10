@@ -199,8 +199,6 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
     }
 
-    let totalFetched = 0;
-
     function isOAuth2Auth(auth: AuthConfig): auth is OAuth2Auth {
         return auth.type === 'oauth2';
     }
@@ -321,18 +319,10 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
 
         download: async function(pageOptions: { limit: number; offset: number }): Promise<{ data: any[]; options?: { [key: string]: any } }> {
             const config = await buildRequestConfig();
-            const pageLimit = Math.min(pageOptions.limit, 100);
-            const totalLimit = connector.limit || Number.MAX_SAFE_INTEGER;
-            const remainingLimit = totalLimit - totalFetched;
-            const effectiveLimit = Math.min(pageLimit, remainingLimit);
-            let after: string | undefined = pageOptions.offset > 0 ? pageOptions.offset.toString() : undefined;
 
-            if (effectiveLimit <= 0) {
-                console.log("Effective limit reached, returning empty result");
-                return { data: [], options: { nextOffset: undefined } };
-            }
+            config.params.limit = Math.min(pageOptions.limit, 100);
 
-            config.params.limit = effectiveLimit;
+            const after = pageOptions.offset > 0 ? pageOptions.offset.toString() : undefined;
             if (after) {
                 config.params.after = after;
             }
@@ -364,12 +354,10 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
                     filteredResults = results;
                 }
 
-                totalFetched += filteredResults.length;
-
                 return {
                     data: filteredResults,
                     options: {
-                        nextOffset: totalFetched < totalLimit && paging?.next?.after ? paging.next.after : undefined,
+                        nextOffset: paging?.next?.after ? paging.next.after : undefined,
                     },
                 };
             } catch (error: any) {

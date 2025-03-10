@@ -130,9 +130,9 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
             dataCount: pageResult.data.length
         });
     } while (data.length < totalItemsToFetch &&
-        isCursorBased
-        ? pageResult.options?.nextOffset !== undefined
-        : pageResult.data.length === itemsPerPage);
+        (isCursorBased
+            ? pageResult.options?.nextOffset !== undefined
+            : pageResult.data.length === itemsPerPage));
     if (data.length >= totalItemsToFetch) {
         if (data.length > totalItemsToFetch) {
             data.splice(totalItemsToFetch, data.length - totalItemsToFetch);
