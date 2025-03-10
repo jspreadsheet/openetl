@@ -230,16 +230,25 @@ describe('HubSpot Adapter', () => {
     });
 
     it('uploads data successfully', async () => {
+        const localConnector = {
+            ...connector,
+            endpoint_id: 'create-contact',
+        };
+
+        const localAdapter = hubspot(localConnector, auth);
+
         const data = [
             { properties: { firstname: 'Alice', lastname: 'Brown', email: 'alice.brown@example.com' } },
         ];
 
         mockedAxios.post.mockResolvedValueOnce({ status: 201, data: { id: '123' } });
 
-        await expect(adapter.upload!(data)).resolves.toBeUndefined();
+        await expect(localAdapter.upload!(data)).resolves.toBeUndefined();
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://api.hubapi.com/crm/v3/objects/contacts',
-            data[0],
+            'https://api.hubapi.com/crm/v3/objects/contacts/batch/create',
+            {
+                inputs: [data[0]],
+            },
             expect.objectContaining({
                 headers: {
                     Authorization: `Bearer ${auth.credentials.access_token}`,
