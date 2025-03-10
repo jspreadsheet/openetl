@@ -175,9 +175,11 @@ async function getDataSerially<T>(
         });
     } while (
         data.length < totalItemsToFetch &&
-        isCursorBased
-            ? pageResult.options?.nextOffset !== undefined
-            : pageResult.data.length === itemsPerPage
+        (
+            isCursorBased
+                ? pageResult.options?.nextOffset !== undefined
+                : pageResult.data.length === itemsPerPage
+        )
     );
 
     if (data.length >= totalItemsToFetch) {
