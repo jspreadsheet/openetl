@@ -302,6 +302,74 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
 
     const maxItemsPerPage = 100;
 
+    const download: AdapterInstance['download'] = async function(pageOptions) {
+        const config = await buildRequestConfig();
+
+        const { limit, offset } = pageOptions;
+
+        if (typeof limit === 'undefined') {
+            throw new Error('Number of items per page is required by the HubSpot adapter');
+        }
+
+        if (limit > maxItemsPerPage) {
+            throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
+        }
+
+        config.params.limit = limit;
+
+        const after = typeof offset !== 'undefined' && offset > 0 ? offset.toString() : undefined;
+        if (after) {
+            config.params.after = after;
+        }
+
+        const response = await axios.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
+        console.log("API Response:", JSON.stringify(response.data, null, 2));
+
+        const { paging, results } = response.data;
+
+        if (!Array.isArray(results)) {
+            console.warn("Results is not an array or is undefined:", response.data);
+            return { data: [], options: { nextOffset: paging?.next?.after } };
+        }
+
+        let filteredResults;
+        if (connector.fields.length > 0) {
+            filteredResults = results.map((item: any) => {
+                const filteredItem: Record<string, any> = {};
+                connector.fields.forEach(field => {
+                    if (item.properties && item.properties[field] !== undefined && item.properties[field] !== null) {
+                        filteredItem[field] = item.properties[field];
+                    }
+                });
+                console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
+                return filteredItem;
+            });
+        } else {
+            filteredResults = results;
+        }
+
+        return {
+            data: filteredResults,
+            options: {
+                nextOffset: paging?.next?.after ? paging.next.after : undefined,
+            },
+        };
+    }
+
+    const handleDownloadError = (error: any) => {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+        if (error.response && typeof error.response.status === 'number') {
+            const status = error.response.status;
+            console.log('Error status:', status);
+            console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
+        } else {
+            console.error("Download error:", errorMessage);
+        }
+
+        return new Error(`Download failed: ${errorMessage}`);
+    }
+
     return {
         paginationType: 'cursor',
         maxItemsPerPage,
@@ -321,81 +389,38 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             }
         },
 
-        download: async function(pageOptions) {
-            const config = await buildRequestConfig();
-
-            const { limit, offset } = pageOptions;
-
-            if (typeof limit === 'undefined') {
-                throw new Error('Number of items per page is required by the HubSpot adapter');
-            }
-
-            if (limit > maxItemsPerPage) {
-                throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
-            }
-
-            config.params.limit = limit;
-
-            const after = typeof offset !== 'undefined' && offset > 0 ? offset.toString() : undefined;
-            if (after) {
-                config.params.after = after;
-            }
-
+        download: async function(pageOptions): Promise<{ data: any[]; options?: { [key: string]: any; } | undefined; }> {
             try {
-                const response = await axios.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
-                console.log("API Response:", JSON.stringify(response.data, null, 2));
-
-                const { paging, results } = response.data;
-
-                if (!Array.isArray(results)) {
-                    console.warn("Results is not an array or is undefined:", response.data);
-                    return { data: [], options: { nextOffset: paging?.next?.after } };
-                }
-
-                let filteredResults;
-                if (connector.fields.length > 0) {
-                    filteredResults = results.map((item: any) => {
-                        const filteredItem: Record<string, any> = {};
-                        connector.fields.forEach(field => {
-                            if (item.properties && item.properties[field] !== undefined && item.properties[field] !== null) {
-                                filteredItem[field] = item.properties[field];
-                            }
-                        });
-                        console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
-                        return filteredItem;
-                    });
-                } else {
-                    filteredResults = results;
-                }
-
-                return {
-                    data: filteredResults,
-                    options: {
-                        nextOffset: paging?.next?.after ? paging.next.after : undefined,
-                    },
-                };
+                return await download(pageOptions);
             } catch (error: any) {
                 // Check for error with response structure
                 if (error.response && typeof error.response.status === 'number') {
                     const status = error.response.status;
-                    console.log('Error status:', status);
                     if (status === 401) {
-                        console.log('401 detected, refreshing token');
+                        console.log('Error status 401 detected, refreshing token');
                         await refreshOAuthToken();
                         console.log('Token refreshed, retrying');
-                        return this.download(pageOptions);
+
+                        try {
+                            return await download(pageOptions);
+                        } catch (error) {
+                            throw handleDownloadError(error);
+                        }
                     } else if (status === 429) {
                         const retryAfter = error.response.headers['retry-after'] ? parseInt(error.response.headers['retry-after'], 10) * 1000 : 1000;
                         console.log(`Rate limit hit, waiting ${retryAfter}ms`);
                         await delay(retryAfter);
                         console.log('Retrying download after delay');
-                        return this.download(pageOptions);
+
+                        try {
+                            return await download(pageOptions);
+                        } catch (error) {
+                            throw handleDownloadError(error);
+                        }
                     }
-                    console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
                 }
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                console.error("Download error:", errorMessage);
-                throw new Error(`Download failed: ${errorMessage}`);
+
+                throw handleDownloadError(error);
             }
         },
 

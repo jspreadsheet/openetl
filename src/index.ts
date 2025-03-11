@@ -83,11 +83,6 @@ async function fetchData(
         return result;
     }
 
-    log({
-        type: 'error',
-        message: 'max_retries reached',
-    });
-
     throw new Error('max_retries reached');
 }
 
