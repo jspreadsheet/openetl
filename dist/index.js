@@ -85,16 +85,32 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
         ? 0
         : 1000 / rl.requests_per_second;
     // Initialize pagination parameters
-    const itemsPerPage = pipeline.source.pagination?.itemsPerPage || DEFAULT_CONFIG.ITEMS_PER_PAGE;
+    let itemsPerPage = pipeline.source.pagination?.itemsPerPage || undefined;
+    if (typeof sourceAdapter.maxItemsPerPage !== 'undefined') {
+        if (typeof itemsPerPage === 'undefined') {
+            log({
+                type: 'info',
+                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${sourceAdapter.maxItemsPerPage}) will be used instead.`,
+            });
+            itemsPerPage = sourceAdapter.maxItemsPerPage;
+        }
+        else if (itemsPerPage < sourceAdapter.maxItemsPerPage) {
+            log({
+                type: 'info',
+                message: `The number of items per page (${itemsPerPage}) is greater than the maximum allowed by the adapter (${sourceAdapter.maxItemsPerPage}), so it will be reduced to the maximum allowed by the adapter`,
+            });
+            itemsPerPage = sourceAdapter.maxItemsPerPage;
+        }
+    }
     const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
     const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
     const downloadStartTime = Date.now();
-    const isCursorBased = pipeline.source.pagination?.type === 'cursor';
+    const cursorType = sourceAdapter.paginationType;
     let pageResult, fetchDataMoment, pageOffset = pipeline.source.pagination?.pageOffsetKey || '0'; // Start as string
     let data = [];
     do {
         if (pageResult) {
-            if (isCursorBased) {
+            if (cursorType === 'cursor') {
                 pageOffset = pageResult.options.nextOffset; // Accept string or number
                 log({ type: 'info', message: `Next cursor set to ${pageOffset}` });
             }
@@ -124,29 +140,43 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
         }
         // Process page data
         data.push(...pageResult.data);
-        log({
-            type: 'extract',
-            message: `Extracted page${isCursorBased && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
-            dataCount: pageResult.data.length
-        });
+        if (typeof cursorType !== 'undefined') {
+            log({
+                type: 'extract',
+                message: `Extracted page${cursorType === 'cursor' && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
+                dataCount: pageResult.data.length
+            });
+        }
     } while (data.length < totalItemsToFetch &&
-        (isCursorBased
+        typeof cursorType !== 'undefined' &&
+        typeof itemsPerPage !== 'undefined' &&
+        (cursorType === 'cursor'
             ? pageResult.options?.nextOffset !== undefined
             : pageResult.data.length === itemsPerPage));
-    if (data.length >= totalItemsToFetch) {
-        if (data.length > totalItemsToFetch) {
-            data.splice(totalItemsToFetch, data.length - totalItemsToFetch);
-        }
+    if (data.length > totalItemsToFetch) {
+        data.splice(totalItemsToFetch, data.length - totalItemsToFetch);
+    }
+    if (typeof cursorType === 'undefined' || typeof itemsPerPage === 'undefined') {
+        log({ type: 'info', message: 'Search without pagination finished' });
+    }
+    else if (data.length === totalItemsToFetch) {
         log({ type: 'info', message: `Reached total items limit of ${totalItemsToFetch}` });
     }
-    else if (pageResult.data.length === 0) {
-        log({ type: 'info', message: 'No more data to fetch' });
+    else if (cursorType === 'cursor') {
+        if (pageResult.options?.nextOffset === undefined) {
+            log({ type: 'info', message: 'No more data to fetch' });
+        }
     }
-    else if (pageResult.data.length < itemsPerPage) {
-        log({
-            type: 'info',
-            message: `Received ${pageResult.data.length} items, less than ${itemsPerPage}, so it's the last page`
-        });
+    else {
+        if (pageResult.data.length === 0) {
+            log({ type: 'info', message: 'No more data to fetch' });
+        }
+        else if (pageResult.data.length < itemsPerPage) {
+            log({
+                type: 'info',
+                message: `Received ${pageResult.data.length} items, less than ${itemsPerPage}, so it's the last page`
+            });
+        }
     }
     return data;
 }

@@ -135,6 +135,7 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   return {
+    paginationType: 'offset',
     connect: async function() {
       if (!isBasicAuth(auth)) {
         throw new Error("PostgreSQL adapter requires basic authentication");
