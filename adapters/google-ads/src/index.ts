@@ -212,80 +212,100 @@ function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
     return parts.join(' ');
   }
 
+  const download: AdapterInstance['download'] = async function(pageOptions) {
+    if (endpoint.id === "table_insert") {
+      throw new Error("Table_insert endpoint only supported for upload");
+    }
+
+    if (!connector.config?.customerId) {
+      throw new Error("customerId required");
+    }
+
+    if (!connector.config?.developerToken) {
+      throw new Error("developerToken required");
+    }
+
+    const config = await buildRequestConfig();
+
+    const query = buildSelectQuery(pageOptions.limit);
+
+    const response = await axios.post(
+      `${baseUrl}/customers/${connector.config.customerId}/googleAds:search`,
+      {
+        query
+      },
+      config
+    );
+    console.log("API Response:", JSON.stringify(response.data, null, 2));
+
+    const { results } = response.data;
+
+    if (!Array.isArray(results)) {
+        console.warn("Results is not an array or is undefined:", response.data);
+        return { data: [] };
+    }
+
+    let filteredResults;
+    if (connector.fields.length > 0) {
+        filteredResults = results.map((item: any) => {
+            const filteredItem: Record<string, any> = {};
+            connector.fields.forEach(field => {
+                if (item) {
+                    const value = path.call(item, field);
+
+                    if (value !== undefined && value !== null) {
+                      path.call(filteredItem, field, value);
+                    }
+                }
+            });
+            console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
+            return filteredItem;
+        });
+    } else {
+        filteredResults = results;
+    }
+
+    return {
+        data: filteredResults,
+    };
+  }
+
+  const handleDownloadError = (error: any) => {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    if (error.response && typeof error.response.status === 'number') {
+      const status = error.response.status;
+      console.log('Error status:', status);
+      console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error("Download error:", errorMessage);
+    }
+
+    return new Error(`Download failed: ${errorMessage}`);
+  }
+
   return {
     download: async function(pageOptions) {
-      if (endpoint.id === "table_insert") {
-        throw new Error("Table_insert endpoint only supported for upload");
-      }
-
-      if (!connector.config?.customerId) {
-        throw new Error("customerId required");
-      }
-
-      if (!connector.config?.developerToken) {
-        throw new Error("developerToken required");
-      }
-
-      const config = await buildRequestConfig();
-
-      const query = buildSelectQuery(pageOptions.limit);
-
       try {
-        const response = await axios.post(
-          `${baseUrl}/customers/${connector.config.customerId}/googleAds:search`,
-          {
-            query
-          },
-          config
-        );
-        console.log("API Response:", JSON.stringify(response.data, null, 2));
-
-        const { results } = response.data;
-
-        if (!Array.isArray(results)) {
-            console.warn("Results is not an array or is undefined:", response.data);
-            return { data: [] };
-        }
-
-        let filteredResults;
-        if (connector.fields.length > 0) {
-            filteredResults = results.map((item: any) => {
-                const filteredItem: Record<string, any> = {};
-                connector.fields.forEach(field => {
-                    if (item) {
-                        const value = path.call(item, field);
-
-                        if (value !== undefined && value !== null) {
-                          path.call(filteredItem, field, value);
-                        }
-                    }
-                });
-                console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
-                return filteredItem;
-            });
-        } else {
-            filteredResults = results;
-        }
-
-        return {
-            data: filteredResults,
-        };
+        return await download(pageOptions);
       } catch (error: any) {
         // Check for error with response structure
         if (error.response && typeof error.response.status === 'number') {
-            const status = error.response.status;
-            console.log('Error status:', status);
-            if (status === 401) {
-                console.log('401 detected, refreshing token');
-                await refreshOAuthToken();
-                console.log('Token refreshed, retrying');
-                return this.download(pageOptions);
-            }
-            console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
+          const status = error.response.status;
+          if (status === 401) {
+              console.log('Error status 401 detected, refreshing token');
+              await refreshOAuthToken();
+              console.log('Token refreshed, retrying');
+
+              try {
+                return await download(pageOptions);
+              } catch (error) {
+                throw handleDownloadError(error);
+              }
+          }
         }
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error("Download error:", errorMessage);
-        throw new Error(`Download failed: ${errorMessage}`);
+
+        throw handleDownloadError((error));
       }
     },
   };
