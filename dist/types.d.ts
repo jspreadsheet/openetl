@@ -140,7 +140,6 @@ export type Sort = {
     field: string;
 };
 export type Pagination = {
-    type: "offset" | "cursor" | "page";
     itemsPerPage?: number;
     pageOffsetKey?: string;
 };
@@ -195,11 +194,13 @@ export interface Pipeline<T = object> {
     };
 }
 export interface AdapterInstance {
+    paginationType?: string;
+    maxItemsPerPage?: number;
     connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
     download(pageOptions: {
-        limit: number;
-        offset: number;
+        limit?: number;
+        offset?: number;
     }): Promise<{
         data: any[];
         options?: {

@@ -338,7 +338,10 @@ function hubspot(connector, auth) {
         };
         return operatorMap[operator] || operator;
     }
+    const maxItemsPerPage = 100;
     return {
+        paginationType: 'cursor',
+        maxItemsPerPage,
         connect: async function () {
             const config = await buildRequestConfig();
             try {
@@ -357,8 +360,15 @@ function hubspot(connector, auth) {
         },
         download: async function (pageOptions) {
             const config = await buildRequestConfig();
-            config.params.limit = Math.min(pageOptions.limit, 100);
-            const after = pageOptions.offset > 0 ? pageOptions.offset.toString() : undefined;
+            const { limit, offset } = pageOptions;
+            if (typeof limit === 'undefined') {
+                throw new Error('Number of items per page is required by the HubSpot adapter');
+            }
+            if (limit > maxItemsPerPage) {
+                throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
+            }
+            config.params.limit = limit;
+            const after = typeof offset !== 'undefined' && offset > 0 ? offset.toString() : undefined;
             if (after) {
                 config.params.after = after;
             }

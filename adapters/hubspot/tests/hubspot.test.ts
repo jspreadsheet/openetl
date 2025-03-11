@@ -27,7 +27,7 @@ describe('HubSpot Adapter', () => {
                 value: 'customer',
             }],
             transform: [],
-            pagination: { type: 'cursor', itemsPerPage: 10 },
+            pagination: { itemsPerPage: 10 },
         };
 
         // Mock OAuth2 authentication

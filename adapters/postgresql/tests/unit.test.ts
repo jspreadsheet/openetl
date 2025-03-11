@@ -34,7 +34,7 @@ describe('PostgreSQL Adapter', () => {
       }],
       sort: [{ type: 'asc', field: 'name' }],
       transform: [],
-      pagination: { type: 'offset', itemsPerPage: 10 },
+      pagination: { itemsPerPage: 10 },
     };
 
     // Mock basic authentication

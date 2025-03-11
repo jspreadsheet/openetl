@@ -207,7 +207,6 @@ export type Sort = {
 };
 
 export type Pagination = {
-    type: "offset" | "cursor" | "page";
     itemsPerPage?: number;       // Number of items per page
     pageOffsetKey?: string;      // Initial offset as string
 };
@@ -270,9 +269,11 @@ export interface Pipeline<T = object> {
 }
 
 export interface AdapterInstance {
+    paginationType?: string,
+    maxItemsPerPage?: number;
     connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
-    download(pageOptions: { limit: number; offset: number }): Promise<{
+    download(pageOptions: { limit?: number; offset?: number }): Promise<{
         data: any[];
         options?: {
             [key: string]: any; // Allow future extensions

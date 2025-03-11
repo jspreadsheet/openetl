@@ -137,6 +137,7 @@ function postgresql(connector, auth) {
         return `INSERT INTO "${schema}"."${table}" (${fields.map(f => `"${f}"`).join(', ')}) VALUES ${values.join(', ')}`;
     }
     return {
+        paginationType: 'offset',
         connect: async function () {
             if (!isBasicAuth(auth)) {
                 throw new Error("PostgreSQL adapter requires basic authentication");

@@ -97,7 +97,7 @@ describe('PostgreSQL Adapter integration tests', () => {
       }],
       sort: [{ type: 'asc', field: 'name' }],
       transform: [],
-      pagination: { type: 'offset', itemsPerPage: 10 },
+      pagination: { itemsPerPage: 10 },
     };
 
     pipeline = {
@@ -259,7 +259,7 @@ describe('PostgreSQL Adapter integration tests', () => {
       config: { schema: "public", table: "test" },
       fields: ['id', 'name', 'email'],
       transform: [],
-      pagination: { type: 'offset', itemsPerPage: 10 },
+      pagination: { itemsPerPage: 10 },
     };
 
     await orchestrator.runPipeline(pipeline);

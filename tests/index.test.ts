@@ -8,6 +8,7 @@ const transformMock = jest.fn(async (data: any[]) =>
 );
 
 const cursorAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
+    paginationType: 'cursor',
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
     download: jest.fn(async ({ limit, offset }) => {
@@ -36,6 +37,7 @@ const downloadFunction = async ({ limit, offset }: { limit: number, offset: numb
 }
 
 const mockAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn((connector: Connector, auth: AuthConfig) => ({
+    paginationType: 'offset',
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
     download: jest.fn(downloadFunction),
@@ -79,7 +81,7 @@ const mockConnector: Connector = {
     endpoint_id: 'test',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
-    pagination: { type: 'offset', itemsPerPage: 5, pageOffsetKey: '0' },
+    pagination: { itemsPerPage: 5, pageOffsetKey: '0' },
 };
 
 const failingConnector: Connector = {
@@ -88,7 +90,7 @@ const failingConnector: Connector = {
     endpoint_id: 'test',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
-    pagination: { type: 'offset', itemsPerPage: 5, pageOffsetKey: '0' },
+    pagination: { itemsPerPage: 5, pageOffsetKey: '0' },
 };
 
 const cursorConnector: Connector = {
@@ -97,7 +99,7 @@ const cursorConnector: Connector = {
     endpoint_id: 'test',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
-    pagination: { type: 'cursor', itemsPerPage: 2 },
+    pagination: { itemsPerPage: 2 },
 };
 
 
@@ -430,7 +432,6 @@ describe('Orchestrator', () => {
                 ...mockConnector,
                 limit: itemsLimit,
                 pagination: {
-                    type: 'offset',
                     itemsPerPage: 2,
                 }
             },
@@ -470,7 +471,6 @@ describe('Orchestrator', () => {
             source: {
                 ...mockConnector,
                 pagination: {
-                    type: 'offset',
                     itemsPerPage,
                 }
             },
