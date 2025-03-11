@@ -38,16 +38,16 @@ const GoogleAdsAdapter = {
     credential_type: "oauth2",
     config: [
         {
-            name: 'table',
-            required: true,
-        },
-        {
             name: 'customerId',
             required: true,
         },
         {
             name: 'developerToken',
             required: true,
+        },
+        {
+            name: 'table',
+            required: false,
         },
         {
             name: 'loginCustomerId',
@@ -184,7 +184,10 @@ function googleAds(connector, auth) {
         }
         const parts = [];
         // SELECT clause
-        parts.push(`SELECT ${connector.fields.length > 0 ? connector.fields.join(', ') : '*'}`);
+        if (connector.fields.length === 0) {
+            throw new Error('At least one field name must be informed');
+        }
+        parts.push(`SELECT ${connector.fields.join(', ')}`);
         // FROM clause
         parts.push(`FROM ${connector.config.table}`);
         // WHERE clause

@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "npx webpack --config webpack.config.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "keywords": [],
   "private": "true",
@@ -15,6 +15,9 @@
     "google-auth-library": "^9.15.1"
   },
   "devDependencies": {
-    "openetl": "file:../.."
+    "@types/jest": "^29.5.14",
+    "jest": "^29.7.0",
+    "openetl": "file:../..",
+    "ts-jest": "^29.2.6"
   }
 }
