@@ -24,10 +24,10 @@ if (! axios && typeof(require) === 'function') {
 ;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
-    global.hubspot = factory();
+    global.googleAds = factory();
 }(this, (function () {`;
 
-            const footer = `    return hubspot;
+            const footer = `    return googleAds;
 })));`;
 
             // Combine header, original content, and footer
@@ -56,7 +56,7 @@ const webpack = {
     output: {
         filename: 'index.js',
         path: path.resolve(__dirname, 'dist'),
-        library: 'hubspot',
+        library: 'googleAds',
         globalObject: 'default'
     },
     module: {
