@@ -163,6 +163,7 @@ export interface Connector {
     limit?: number;
     pagination?: Pagination;
     timeout?: number;
+    debug?: boolean;
 }
 export type PipelineEvent = {
     type: "start" | "extract" | "transform" | "load" | "error" | "complete" | "info";
