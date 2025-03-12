@@ -389,7 +389,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             }
         },
 
-        download: async function(pageOptions): Promise<{ data: any[]; options?: { [key: string]: any; } | undefined; }> {
+        download: async function(pageOptions) {
             try {
                 return await download(pageOptions);
             } catch (error: any) {
