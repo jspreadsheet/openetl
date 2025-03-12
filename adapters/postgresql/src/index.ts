@@ -40,6 +40,9 @@ const PostgresqlAdapter: DatabaseAdapter = {
     { id: "custom_query", query_type: "custom", description: "Run a custom SQL query", supported_actions: ["download"] },
     { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
   ],
+  pagination: {
+    type: 'offset',
+  }
 };
 
 function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
@@ -141,7 +144,9 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   return {
-    paginationType: 'offset',
+    getConfig: function() {
+      return PostgresqlAdapter;
+    },
     connect: async function() {
       if (!isBasicAuth(auth)) {
         throw new Error("PostgreSQL adapter requires basic authentication");

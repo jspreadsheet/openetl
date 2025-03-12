@@ -276,6 +276,9 @@ function googleAds(connector, auth) {
         return new Error(`Download failed: ${errorMessage}`);
     };
     return {
+        getConfig: () => {
+            return GoogleAdsAdapter;
+        },
         download: async function (pageOptions) {
             try {
                 return await download(pageOptions);

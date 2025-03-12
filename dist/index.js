@@ -82,31 +82,48 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
         : 1000 / rl.requests_per_second;
     // Initialize pagination parameters
     let itemsPerPage = pipeline.source.pagination?.itemsPerPage || undefined;
-    if (typeof sourceAdapter.maxItemsPerPage !== 'undefined') {
+    const adapterConfig = sourceAdapter.getConfig();
+    let paginationConfig;
+    if (adapterConfig.type === 'http') {
+        const { endpoints } = adapterConfig;
+        const { endpoint_id: endpointId } = pipeline.source;
+        const endpoint = endpoints.find(e => e.id === endpointId);
+        if (!endpoint) {
+            throw new Error(`Endpoint ${endpointId} not found in adapter ${pipeline.source.adapter_id}`);
+        }
+        const pagination = endpoint.settings?.pagination;
+        if (typeof pagination !== "undefined") {
+            paginationConfig = pagination;
+        }
+    }
+    if (typeof paginationConfig === "undefined") {
+        paginationConfig = adapterConfig.pagination || false;
+    }
+    if (paginationConfig && typeof paginationConfig.maxItemsPerPage !== 'undefined') {
         if (typeof itemsPerPage === 'undefined') {
             log({
                 type: 'info',
-                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${sourceAdapter.maxItemsPerPage}) will be used instead.`,
+                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${paginationConfig.maxItemsPerPage}) will be used instead.`,
             });
-            itemsPerPage = sourceAdapter.maxItemsPerPage;
+            itemsPerPage = paginationConfig.maxItemsPerPage;
         }
-        else if (itemsPerPage < sourceAdapter.maxItemsPerPage) {
+        else if (itemsPerPage < paginationConfig.maxItemsPerPage) {
             log({
                 type: 'info',
-                message: `The number of items per page (${itemsPerPage}) is greater than the maximum allowed by the adapter (${sourceAdapter.maxItemsPerPage}), so it will be reduced to the maximum allowed by the adapter`,
+                message: `The number of items per page (${itemsPerPage}) is greater than the maximum allowed by the adapter (${paginationConfig.maxItemsPerPage}), so it will be reduced to the maximum allowed by the adapter`,
             });
-            itemsPerPage = sourceAdapter.maxItemsPerPage;
+            itemsPerPage = paginationConfig.maxItemsPerPage;
         }
     }
     const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
     const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
     const downloadStartTime = Date.now();
-    const cursorType = sourceAdapter.paginationType;
+    const paginationType = (paginationConfig && paginationConfig.type) || undefined;
     let pageResult, fetchDataMoment, pageOffset = pipeline.source.pagination?.pageOffsetKey || '0'; // Start as string
     let data = [];
     do {
         if (pageResult) {
-            if (cursorType === 'cursor') {
+            if (paginationType === 'cursor') {
                 pageOffset = pageResult.options.nextOffset; // Accept string or number
                 log({ type: 'info', message: `Next cursor set to ${pageOffset}` });
             }
@@ -136,29 +153,29 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
         }
         // Process page data
         data.push(...pageResult.data);
-        if (typeof cursorType !== 'undefined') {
+        if (typeof paginationType !== 'undefined') {
             log({
                 type: 'extract',
-                message: `Extracted page${cursorType === 'cursor' && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
+                message: `Extracted page${paginationType === 'cursor' && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
                 dataCount: pageResult.data.length
             });
         }
     } while (data.length < totalItemsToFetch &&
-        typeof cursorType !== 'undefined' &&
+        typeof paginationType !== 'undefined' &&
         typeof itemsPerPage !== 'undefined' &&
-        (cursorType === 'cursor'
+        (paginationType === 'cursor'
             ? pageResult.options?.nextOffset !== undefined
             : pageResult.data.length === itemsPerPage));
     if (data.length > totalItemsToFetch) {
         data.splice(totalItemsToFetch, data.length - totalItemsToFetch);
     }
-    if (typeof cursorType === 'undefined' || typeof itemsPerPage === 'undefined') {
+    if (typeof paginationType === 'undefined' || typeof itemsPerPage === 'undefined') {
         log({ type: 'info', message: 'Search without pagination finished' });
     }
     else if (data.length === totalItemsToFetch) {
         log({ type: 'info', message: `Reached total items limit of ${totalItemsToFetch}` });
     }
-    else if (cursorType === 'cursor') {
+    else if (paginationType === 'cursor') {
         if (pageResult.options?.nextOffset === undefined) {
             log({ type: 'info', message: 'No more data to fetch' });
         }

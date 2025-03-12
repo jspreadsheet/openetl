@@ -291,6 +291,9 @@ function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   return {
+    getConfig: () => {
+      return GoogleAdsAdapter;
+    },
     download: async function(pageOptions) {
       try {
         return await download(pageOptions);
