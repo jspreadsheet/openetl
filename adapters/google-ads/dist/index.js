@@ -117,6 +117,11 @@ function path(str, val, remove) {
     return false;
 }
 function googleAds(connector, auth) {
+    const log = function (...args) {
+        if (connector.debug) {
+            console.log(...arguments);
+        }
+    };
     const endpoint = GoogleAdsAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in Google Ads API adapter`);
@@ -141,7 +146,7 @@ function googleAds(connector, auth) {
             });
             auth.credentials.access_token = response.data.access_token;
             auth.expires_at = new Date(Date.now() + response.data.expires_in * 1000).toISOString();
-            console.log("Token refreshed successfully");
+            log("Token refreshed successfully");
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -229,7 +234,7 @@ function googleAds(connector, auth) {
         const response = await axios_1.default.post(`${baseUrl}/customers/${connector.config.customerId}/googleAds:search`, {
             query
         }, config);
-        console.log("API Response:", JSON.stringify(response.data, null, 2));
+        log("API Response:", JSON.stringify(response.data, null, 2));
         const { results } = response.data;
         if (!Array.isArray(results)) {
             console.warn("Results is not an array or is undefined:", response.data);
@@ -247,7 +252,7 @@ function googleAds(connector, auth) {
                         }
                     }
                 });
-                console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
+                log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
                 return filteredItem;
             });
         }
@@ -262,7 +267,7 @@ function googleAds(connector, auth) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         if (error.response && typeof error.response.status === 'number') {
             const status = error.response.status;
-            console.log('Error status:', status);
+            log('Error status:', status);
             console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
         }
         else {
@@ -271,6 +276,9 @@ function googleAds(connector, auth) {
         return new Error(`Download failed: ${errorMessage}`);
     };
     return {
+        getConfig: () => {
+            return GoogleAdsAdapter;
+        },
         download: async function (pageOptions) {
             try {
                 return await download(pageOptions);
@@ -280,9 +288,9 @@ function googleAds(connector, auth) {
                 if (error.response && typeof error.response.status === 'number') {
                     const status = error.response.status;
                     if (status === 401) {
-                        console.log('Error status 401 detected, refreshing token');
+                        log('Error status 401 detected, refreshing token');
                         await refreshOAuthToken();
-                        console.log('Token refreshed, retrying');
+                        log('Token refreshed, retrying');
                         try {
                             return await download(pageOptions);
                         }

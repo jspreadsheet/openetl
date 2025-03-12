@@ -72,6 +72,11 @@ export type AuthConfig = ApiKeyAuth | OAuth2Auth | BasicAuth;
 // Add Vault type
 export type Vault = Record<string, AuthConfig>;
 
+export type AdapterPagination = {
+    type: string;
+    maxItemsPerPage?: number;
+};
+
 // Adapter Types
 export interface BaseAdapter {
     id: string;
@@ -89,6 +94,7 @@ export interface BaseAdapter {
         provider?: string;
         [key: string]: any;
     };
+    pagination?: AdapterPagination;
 }
 
 export interface HttpAdapter extends BaseAdapter {
@@ -100,6 +106,9 @@ export interface HttpAdapter extends BaseAdapter {
         method: "GET" | "POST" | "PUT" | "DELETE";
         description?: string;
         supported_actions: Array<"download" | "upload" | "sync">;
+        settings?: {
+            pagination?: AdapterPagination | false;
+        }
     }>;
 }
 
@@ -232,6 +241,7 @@ export interface Connector {
     limit?: number;                    // Total items to fetch, defaults to 1M in core.ts if unset
     pagination?: Pagination;
     timeout?: number;                  // Maximum time in milliseconds for download process, defaults to 30s in core.ts if unset
+    debug?: boolean;
 }
 
 // Pipeline Types
@@ -269,8 +279,7 @@ export interface Pipeline<T = object> {
 }
 
 export interface AdapterInstance {
-    paginationType?: string,
-    maxItemsPerPage?: number;
+    getConfig: () => HttpAdapter | DatabaseAdapter;
     connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
     download(pageOptions: { limit?: number; offset?: number }): Promise<{

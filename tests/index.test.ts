@@ -20,6 +20,20 @@ const cursorAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
         return { data: [] };
     }),
     upload: jest.fn().mockResolvedValue(undefined),
+    getConfig: () => {
+        return {
+            id: '',
+            name: '',
+            type: "database",
+            action: [],
+            credential_type: "basic",
+            config: [],
+            pagination: {
+                type: 'cursor',
+            },
+            endpoints: [],
+        }
+    }
 }));
 
 const downloadFunction = async ({ limit, offset }: { limit: number, offset: number }) => {
@@ -42,14 +56,42 @@ const mockAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn((connector: Connecto
     disconnect: jest.fn().mockResolvedValue(undefined),
     download: jest.fn(downloadFunction),
     upload: jest.fn().mockResolvedValue(undefined),
-    transform: transformMock
+    transform: transformMock,
+    getConfig: () => {
+        return {
+            id: '',
+            name: '',
+            type: "database",
+            action: [],
+            credential_type: "basic",
+            config: [],
+            pagination: {
+                type: 'offset',
+            },
+            endpoints: [],
+        }
+    }
 }));
 
 const adapterWithoutUpload: jest.Mock<ReturnType<Adapter>> = jest.fn((connector: Connector, auth: AuthConfig) => ({
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
     download: jest.fn(downloadFunction),
-    transform: transformMock
+    transform: transformMock,
+    getConfig: () => {
+        return {
+            id: '',
+            name: '',
+            type: "database",
+            action: [],
+            credential_type: "basic",
+            config: [],
+            pagination: {
+                type: 'offset',
+            },
+            endpoints: [],
+        }
+    }
 }));
 
 const failingAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
@@ -63,6 +105,20 @@ const failingAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
         return { data: offset === 0 ? [{ id: 1, name: 'Success after retry' }] : [] };
     }),
     upload: jest.fn().mockResolvedValue(undefined),
+    getConfig: () => {
+        return {
+            id: '',
+            name: '',
+            type: "database",
+            action: [],
+            credential_type: "basic",
+            config: [],
+            pagination: {
+                type: 'offset',
+            },
+            endpoints: [],
+        }
+    }
 }));
 
 const mockAuth: AuthConfig = {

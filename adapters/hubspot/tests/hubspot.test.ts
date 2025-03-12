@@ -269,6 +269,8 @@ describe('HubSpot Adapter', () => {
     });
 
     it('disconnects without errors', async () => {
+        connector.debug = true;
+
         const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
         await expect(adapter.disconnect!()).resolves.toBeUndefined();
         expect(consoleLogSpy).toHaveBeenCalledWith('Disconnecting from HubSpot adapter (no-op)');
