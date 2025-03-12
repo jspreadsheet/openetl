@@ -64,6 +64,11 @@ const PostgresqlAdapter = {
 };
 exports.PostgresqlAdapter = PostgresqlAdapter;
 function postgresql(connector, auth) {
+    const log = function (...args) {
+        if (connector.debug) {
+            console.log(...arguments);
+        }
+    };
     const endpoint = PostgresqlAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in PostgreSQL adapter`);
@@ -160,11 +165,11 @@ function postgresql(connector, auth) {
             };
             pool = new Pool(config);
             try {
-                console.log("Testing connection to PostgreSQL...");
+                log("Testing connection to PostgreSQL...");
                 const client = await pool.connect();
                 await client.query('SELECT 1');
                 client.release();
-                console.log("Connection successful");
+                log("Connection successful");
             }
             catch (error) {
                 console.error("Connection test failed:", error.message);
@@ -173,9 +178,9 @@ function postgresql(connector, auth) {
         },
         disconnect: async function () {
             try {
-                console.log("Closing PostgreSQL connection pool...");
+                log("Closing PostgreSQL connection pool...");
                 await pool.end();
-                console.log("Pool closed successfully");
+                log("Pool closed successfully");
             }
             catch (error) {
                 console.error("Error closing pool:", error.message);
@@ -187,10 +192,10 @@ function postgresql(connector, auth) {
                 throw new Error("Table_insert endpoint only supported for upload");
             }
             const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
-            console.log("Executing query:", query);
+            log("Executing query:", query);
             try {
                 const result = await pool.query(query);
-                console.log("Downloaded rows:", result.rows.length);
+                log("Downloaded rows:", result.rows.length);
                 return {
                     data: result.rows
                 };
@@ -205,10 +210,10 @@ function postgresql(connector, auth) {
                 throw new Error("Upload only supported for table_insert endpoint");
             }
             const query = buildInsertQuery(data);
-            console.log("Executing insert:", query);
+            log("Executing insert:", query);
             try {
                 await pool.query(query);
-                console.log("Uploaded rows:", data.length);
+                log("Uploaded rows:", data.length);
             }
             catch (error) {
                 console.error("Upload error:", error.message);

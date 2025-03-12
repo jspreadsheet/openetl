@@ -232,6 +232,7 @@ export interface Connector {
     limit?: number;                    // Total items to fetch, defaults to 1M in core.ts if unset
     pagination?: Pagination;
     timeout?: number;                  // Maximum time in milliseconds for download process, defaults to 30s in core.ts if unset
+    debug?: boolean;
 }
 
 // Pipeline Types

@@ -240,6 +240,11 @@ async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 function hubspot(connector, auth) {
+    const log = function (...args) {
+        if (connector.debug) {
+            console.log(...arguments);
+        }
+    };
     const endpoint = HubSpotAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
@@ -254,7 +259,7 @@ function hubspot(connector, auth) {
         if (!auth.credentials.refresh_token) {
             throw new Error("Refresh token missing; obtain initial tokens manually and update vault");
         }
-        console.log("Refreshing OAuth token...");
+        log("Refreshing OAuth token...");
         try {
             const response = await axios_1.default.post(auth.credentials.token_url || 'https://api.hubapi.com/oauth/v1/token', new URLSearchParams({
                 grant_type: 'refresh_token',
@@ -265,7 +270,7 @@ function hubspot(connector, auth) {
             auth.credentials.access_token = response.data.access_token;
             auth.credentials.refresh_token = response.data.refresh_token || auth.credentials.refresh_token;
             auth.expires_at = new Date(Date.now() + response.data.expires_in * 1000).toISOString();
-            console.log("Token refreshed successfully");
+            log("Token refreshed successfully");
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -354,7 +359,7 @@ function hubspot(connector, auth) {
             config.params.after = after;
         }
         const response = await axios_1.default.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
-        console.log("API Response:", JSON.stringify(response.data, null, 2));
+        log("API Response:", JSON.stringify(response.data, null, 2));
         const { paging, results } = response.data;
         if (!Array.isArray(results)) {
             console.warn("Results is not an array or is undefined:", response.data);
@@ -369,7 +374,7 @@ function hubspot(connector, auth) {
                         filteredItem[field] = item.properties[field];
                     }
                 });
-                console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
+                log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
                 return filteredItem;
             });
         }
@@ -387,7 +392,7 @@ function hubspot(connector, auth) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         if (error.response && typeof error.response.status === 'number') {
             const status = error.response.status;
-            console.log('Error status:', status);
+            log('Error status:', status);
             console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
         }
         else {
@@ -401,12 +406,12 @@ function hubspot(connector, auth) {
         connect: async function () {
             const config = await buildRequestConfig();
             try {
-                console.log("Testing connection to HubSpot...");
+                log("Testing connection to HubSpot...");
                 await axios_1.default.get(`${HubSpotAdapter.base_url}/crm/v3/objects/contacts`, {
                     ...config,
                     params: { limit: 1, ...config.params },
                 });
-                console.log("Connection successful");
+                log("Connection successful");
             }
             catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -423,9 +428,9 @@ function hubspot(connector, auth) {
                 if (error.response && typeof error.response.status === 'number') {
                     const status = error.response.status;
                     if (status === 401) {
-                        console.log('Error status 401 detected, refreshing token');
+                        log('Error status 401 detected, refreshing token');
                         await refreshOAuthToken();
-                        console.log('Token refreshed, retrying');
+                        log('Token refreshed, retrying');
                         try {
                             return await download(pageOptions);
                         }
@@ -435,9 +440,9 @@ function hubspot(connector, auth) {
                     }
                     else if (status === 429) {
                         const retryAfter = error.response.headers['retry-after'] ? parseInt(error.response.headers['retry-after'], 10) * 1000 : 1000;
-                        console.log(`Rate limit hit, waiting ${retryAfter}ms`);
+                        log(`Rate limit hit, waiting ${retryAfter}ms`);
                         await delay(retryAfter);
-                        console.log('Retrying download after delay');
+                        log('Retrying download after delay');
                         try {
                             return await download(pageOptions);
                         }
@@ -473,7 +478,7 @@ function hubspot(connector, auth) {
             }
         },
         disconnect: async function () {
-            console.log("Disconnecting from HubSpot adapter (no-op)");
+            log("Disconnecting from HubSpot adapter (no-op)");
         },
     };
 }
