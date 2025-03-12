@@ -40,9 +40,18 @@ const PostgresqlAdapter: DatabaseAdapter = {
     { id: "custom_query", query_type: "custom", description: "Run a custom SQL query", supported_actions: ["download"] },
     { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
   ],
+  pagination: {
+    type: 'offset',
+  }
 };
 
 function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
+  const log = function(...args: any[]) {
+    if (connector.debug) {
+      console.log(...arguments)
+    }
+  }
+
   const endpoint = PostgresqlAdapter.endpoints.find(e => e.id === connector.endpoint_id)!;
   if (!endpoint) {
     throw new Error(`Endpoint ${connector.endpoint_id} not found in PostgreSQL adapter`);
@@ -135,7 +144,9 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   return {
-    paginationType: 'offset',
+    getConfig: function() {
+      return PostgresqlAdapter;
+    },
     connect: async function() {
       if (!isBasicAuth(auth)) {
         throw new Error("PostgreSQL adapter requires basic authentication");
@@ -162,11 +173,11 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
       pool = new Pool(config);
 
       try {
-        console.log("Testing connection to PostgreSQL...");
+        log("Testing connection to PostgreSQL...");
         const client = await pool.connect();
         await client.query('SELECT 1');
         client.release();
-        console.log("Connection successful");
+        log("Connection successful");
       } catch (error: any) {
         console.error("Connection test failed:", error.message);
         throw new Error(`Failed to connect to PostgreSQL: ${error.message}`);
@@ -174,9 +185,9 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
     },
     disconnect: async function() {
       try {
-        console.log("Closing PostgreSQL connection pool...");
+        log("Closing PostgreSQL connection pool...");
         await pool.end();
-        console.log("Pool closed successfully");
+        log("Pool closed successfully");
       } catch (error: any) {
         console.error("Error closing pool:", error.message);
         throw error;
@@ -188,11 +199,11 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
       }
 
       const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
-      console.log("Executing query:", query);
+      log("Executing query:", query);
 
       try {
         const result: QueryResult<any> = await pool.query(query);
-        console.log("Downloaded rows:", result.rows.length);
+        log("Downloaded rows:", result.rows.length);
         return {
           data: result.rows
         };
@@ -206,10 +217,10 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error("Upload only supported for table_insert endpoint");
       }
       const query = buildInsertQuery(data);
-      console.log("Executing insert:", query);
+      log("Executing insert:", query);
       try {
         await pool.query(query);
-        console.log("Uploaded rows:", data.length);
+        log("Uploaded rows:", data.length);
       } catch (error: any) {
         console.error("Upload error:", error.message);
         throw error;

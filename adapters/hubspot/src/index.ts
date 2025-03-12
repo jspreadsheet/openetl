@@ -12,6 +12,8 @@ import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter
 
 import axios, { isAxiosError } from 'axios';
 
+const maxItemsPerPage = 100;
+
 const HubSpotAdapter: HttpAdapter = {
   id: "hubspot-adapter",
   name: "HubSpot CRM Adapter",
@@ -33,6 +35,10 @@ const HubSpotAdapter: HttpAdapter = {
     provider: "hubspot",
     description: "Adapter for HubSpot CRM and Marketing APIs",
     version: "v3", // Most current stable API version as of Feb 2025
+  },
+  pagination: {
+    type: 'cursor',
+    maxItemsPerPage,
   },
   endpoints: [
     // CRM Objects
@@ -194,6 +200,12 @@ async function delay(ms: number): Promise<void> {
 }
 
 function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
+    const log = function(...args: any[]) {
+        if (connector.debug) {
+            console.log(...arguments)
+        }
+    }
+
     const endpoint = HubSpotAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
@@ -210,7 +222,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         if (!auth.credentials.refresh_token) {
             throw new Error("Refresh token missing; obtain initial tokens manually and update vault");
         }
-        console.log("Refreshing OAuth token...");
+        log("Refreshing OAuth token...");
         try {
             const response = await axios.post(
                 auth.credentials.token_url || 'https://api.hubapi.com/oauth/v1/token',
@@ -225,7 +237,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             auth.credentials.access_token = response.data.access_token;
             auth.credentials.refresh_token = response.data.refresh_token || auth.credentials.refresh_token;
             auth.expires_at = new Date(Date.now() + response.data.expires_in * 1000).toISOString();
-            console.log("Token refreshed successfully");
+            log("Token refreshed successfully");
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error("Token refresh failed:", errorMessage);
@@ -300,8 +312,6 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         return operatorMap[operator] || operator;
     }
 
-    const maxItemsPerPage = 100;
-
     const download: AdapterInstance['download'] = async function(pageOptions) {
         const config = await buildRequestConfig();
 
@@ -323,7 +333,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         }
 
         const response = await axios.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
-        console.log("API Response:", JSON.stringify(response.data, null, 2));
+        log("API Response:", JSON.stringify(response.data, null, 2));
 
         const { paging, results } = response.data;
 
@@ -341,7 +351,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
                         filteredItem[field] = item.properties[field];
                     }
                 });
-                console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
+                log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
                 return filteredItem;
             });
         } else {
@@ -361,7 +371,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
 
         if (error.response && typeof error.response.status === 'number') {
             const status = error.response.status;
-            console.log('Error status:', status);
+            log('Error status:', status);
             console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
         } else {
             console.error("Download error:", errorMessage);
@@ -371,17 +381,18 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
     }
 
     return {
-        paginationType: 'cursor',
-        maxItemsPerPage,
+        getConfig: () => {
+            return HubSpotAdapter;
+        },
         connect: async function(): Promise<void> {
             const config = await buildRequestConfig();
             try {
-                console.log("Testing connection to HubSpot...");
+                log("Testing connection to HubSpot...");
                 await axios.get(`${HubSpotAdapter.base_url}/crm/v3/objects/contacts`, {
                     ...config,
                     params: { limit: 1, ...config.params },
                 });
-                console.log("Connection successful");
+                log("Connection successful");
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 console.error("Connection test failed:", errorMessage);
@@ -389,7 +400,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             }
         },
 
-        download: async function(pageOptions): Promise<{ data: any[]; options?: { [key: string]: any; } | undefined; }> {
+        download: async function(pageOptions) {
             try {
                 return await download(pageOptions);
             } catch (error: any) {
@@ -397,9 +408,9 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
                 if (error.response && typeof error.response.status === 'number') {
                     const status = error.response.status;
                     if (status === 401) {
-                        console.log('Error status 401 detected, refreshing token');
+                        log('Error status 401 detected, refreshing token');
                         await refreshOAuthToken();
-                        console.log('Token refreshed, retrying');
+                        log('Token refreshed, retrying');
 
                         try {
                             return await download(pageOptions);
@@ -408,9 +419,9 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
                         }
                     } else if (status === 429) {
                         const retryAfter = error.response.headers['retry-after'] ? parseInt(error.response.headers['retry-after'], 10) * 1000 : 1000;
-                        console.log(`Rate limit hit, waiting ${retryAfter}ms`);
+                        log(`Rate limit hit, waiting ${retryAfter}ms`);
                         await delay(retryAfter);
-                        console.log('Retrying download after delay');
+                        log('Retrying download after delay');
 
                         try {
                             return await download(pageOptions);
@@ -453,7 +464,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             }
         },
         disconnect: async function(): Promise<void> {
-            console.log("Disconnecting from HubSpot adapter (no-op)");
+            log("Disconnecting from HubSpot adapter (no-op)");
         },
     };
 }
