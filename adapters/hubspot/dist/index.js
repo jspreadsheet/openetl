@@ -64,6 +64,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HubSpotAdapter = void 0;
 exports.hubspot = hubspot;
 const axios_1 = __importStar(__webpack_require__(467));
+const maxItemsPerPage = 100;
 const HubSpotAdapter = {
     id: "hubspot-adapter",
     name: "HubSpot CRM Adapter",
@@ -85,6 +86,10 @@ const HubSpotAdapter = {
         provider: "hubspot",
         description: "Adapter for HubSpot CRM and Marketing APIs",
         version: "v3", // Most current stable API version as of Feb 2025
+    },
+    pagination: {
+        type: 'cursor',
+        maxItemsPerPage,
     },
     endpoints: [
         // CRM Objects
@@ -343,7 +348,6 @@ function hubspot(connector, auth) {
         };
         return operatorMap[operator] || operator;
     }
-    const maxItemsPerPage = 100;
     const download = async function (pageOptions) {
         const config = await buildRequestConfig();
         const { limit, offset } = pageOptions;
@@ -401,8 +405,9 @@ function hubspot(connector, auth) {
         return new Error(`Download failed: ${errorMessage}`);
     };
     return {
-        paginationType: 'cursor',
-        maxItemsPerPage,
+        getConfig: () => {
+            return HubSpotAdapter;
+        },
         connect: async function () {
             const config = await buildRequestConfig();
             try {
