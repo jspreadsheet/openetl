@@ -36,6 +36,9 @@ const MySQLAdapter: DatabaseAdapter = {
     { id: "custom_query", query_type: "custom", description: "Run a custom SQL query", supported_actions: ["download"] },
     { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
   ],
+  pagination: {
+    type: 'offset',
+  }
 };
 
 function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
@@ -76,7 +79,7 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
       const whereClauses = connector.filters.map(filter => {
         if (!isFilter(filter)) {
           const subClauses = filter.filters.map(f =>
-              isFilter(f) ? `\`${f.field}\` ${f.operator} '${f.value}'` : ''
+            isFilter(f) ? `\`${f.field}\` ${f.operator} '${f.value}'` : ''
           );
           return `(${subClauses.join(` ${filter.op} `)})`;
         }
@@ -88,8 +91,8 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
     // ORDER BY clause
     if (connector.sort && connector.sort.length > 0) {
       const orderBy = connector.sort
-          .map(sort => `\`${sort.field}\` ${sort.type.toUpperCase()}`)
-          .join(', ');
+        .map(sort => `\`${sort.field}\` ${sort.type.toUpperCase()}`)
+        .join(', ');
       parts.push(`ORDER BY ${orderBy}`);
     }
 
@@ -105,19 +108,19 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
     if (!connector.config?.database || !connector.config?.table) {
       throw new Error("Database and table required for table_insert endpoint");
     }
-  
+
     if (!data || data.length === 0) {
       throw new Error("Data array cannot be empty for insert operation");
     }
-  
+
     const database = connector.config.database;
     const table = connector.config.table;
     const fields = connector.fields.length > 0 ? connector.fields : Object.keys(data[0]);
-  
+
     if (fields.length === 0) {
       throw new Error("No fields specified or inferred from data for insert operation");
     }
-  
+
     const values = data.map(row => {
       const rowValues = fields.map(field => {
         const value = row[field];
@@ -131,19 +134,21 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
       });
       return `(${rowValues.join(', ')})`;
     });
-  
+
     // Break down the query construction for clarity
     const fieldList = fields.map(f => `\`${f}\``).join(', ');
     const valueList = values.join(', ');
     const query = `INSERT INTO \`${database}\`.\`${table}\` (${fieldList}) VALUES ${valueList}`;
-  
+
     console.log("Generated query:", query); // Debug output to verify the string
     return query;
   }
 
   return {
-    paginationType: 'offset',
-    connect: async function() {
+    getConfig: function() {
+      return MySQLAdapter;
+    },
+    connect: async function () {
       if (!isBasicAuth(auth)) {
         throw new Error("MySQL adapter requires basic authentication");
       }
@@ -160,8 +165,8 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
         host: auth.credentials.host || defaultConfig.host,
         database: auth.credentials.database || defaultConfig.database,
         port: auth.credentials.port !== undefined
-            ? parseInt(auth.credentials.port.toString(), 10)
-            : defaultConfig.port,
+          ? parseInt(auth.credentials.port.toString(), 10)
+          : defaultConfig.port,
       };
 
       try {
@@ -174,7 +179,7 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error(`Failed to connect to MySQL: ${error.message}`);
       }
     },
-    disconnect: async function() {
+    disconnect: async function () {
       try {
         console.log("Closing MySQL connection...");
         if (connection) {
@@ -186,7 +191,7 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw error;
       }
     },
-    download: async function(pageOptions: { limit?: number; offset?: number }) {
+    download: async function (pageOptions: { limit?: number; offset?: number }) {
       if (endpoint.id === "table_insert") {
         throw new Error("Table_insert endpoint only supported for upload");
       }
@@ -205,7 +210,7 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw error;
       }
     },
-    upload: async function(data: any[]) {
+    upload: async function (data: any[]) {
       if (endpoint.id !== "table_insert") {
         throw new Error("Upload only supported for table_insert endpoint");
       }
