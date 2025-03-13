@@ -74,7 +74,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     };
   });
 
-  afterAll(async () => {
+  afterEach(async () => {
     if (realClient) {
       await realClient.close();
     }
@@ -480,7 +480,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
       connector.fields = ['name', 'email']; // Project 'name' and 'email'
-  
+
       let result: any[] | null = null;
       pipeline.onload = (data) => {
         result = data;
@@ -501,6 +501,119 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![0]).toHaveProperty('email');  // Ensure 'email' is included
       expect(result![0]).not.toHaveProperty('age');    // Ensure 'age' is excluded
       expect(result![0]).not.toHaveProperty('status'); // Ensure 'status' is excluded
+    });
+  });
+
+  describe('Sorting', () => {
+    const sampleUsers = [
+      { name: 'Charlie', email: 'charlie@example.com', age: 30 },
+      { name: 'Alice', email: 'alice@example.com', age: 20 },
+      { name: 'Bob', email: 'bob@example.com', age: 25 },
+    ];
+  
+    it('sorts data in ascending order by name', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = []; // No filters to get all records
+      connector.fields = ['name', 'email']; // Project name and email
+      connector.sort = [{ field: 'name', type: 'asc' }]; // Sort by name ascending
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com' }),
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com' }),
+        ])
+      );
+      expect(result!.length).toBe(3);
+      // Verify exact order since arrayContaining doesn't guarantee it
+      expect(result![0].name).toBe('Alice');
+      expect(result![1].name).toBe('Bob');
+      expect(result![2].name).toBe('Charlie');
+    });
+  
+    it('sorts data in descending order by name', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'desc' }]; // Sort by name descending
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com' }),
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com' }),
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
+        ])
+      );
+      expect(result!.length).toBe(3);
+      expect(result![0].name).toBe('Charlie');
+      expect(result![1].name).toBe('Bob');
+      expect(result![2].name).toBe('Alice');
+    });
+  
+    it('sorts data in ascending order by age', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [];
+      connector.fields = ['name', 'email', 'age']; // Include age in projection
+      connector.sort = [{ field: 'age', type: 'asc' }]; // Sort by age ascending
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com', age: 20 }),
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com', age: 25 }),
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com', age: 30 }),
+        ])
+      );
+      expect(result!.length).toBe(3);
+      expect(result![0].age).toBe(20);
+      expect(result![1].age).toBe(25);
+      expect(result![2].age).toBe(30);
+    });
+  
+    it('sorts data in descending order by age', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [];
+      connector.fields = ['name', 'email', 'age'];
+      connector.sort = [{ field: 'age', type: 'desc' }]; // Sort by age descending
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com', age: 30 }),
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com', age: 25 }),
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com', age: 20 }),
+        ])
+      );
+      expect(result!.length).toBe(3);
+      expect(result![0].age).toBe(30);
+      expect(result![1].age).toBe(25);
+      expect(result![2].age).toBe(20);
     });
   });
   
