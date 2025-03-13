@@ -754,6 +754,28 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![0].name).toBe('User041');  // First item of page 5
       expect(result![59].name).toBe('User100'); // Last item of dataset
     });
+
+  });
+
+
+  describe('Download: Pagination - Empty Collection', () => {
+    it('Download: handles empty dataset with offset 0', async () => {
+      // No users inserted (empty collection)
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20 };
+      connector.limit = 20;
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(0);
+    });
   });
   
 });
