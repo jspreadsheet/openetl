@@ -216,4 +216,109 @@ describe('MongoDB Adapter Integration Tests', () => {
       ))
     );
   });
+
+
+  describe('Filtering with Simple Conditions', () => {
+    const sampleUsers = [
+      { name: 'Alice', email: 'alice@example.com', age: 20 },
+      { name: 'Bob', email: 'bob@example.com', age: 25 },
+      { name: 'Charlie', email: 'charlie@example.com', age: 30 },
+      { name: 'David', email: 'david@example.com', age: 35 },
+    ];
+
+    it('filters data with equality condition on numerical field', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'age', operator: '=', value: 25 }];
+
+      let result;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com' })
+        ])
+      );
+    });
+
+    it('filters data with greater than condition', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'age', operator: '>', value: 25 }];
+
+      let result;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com' }),
+          expect.objectContaining({ name: 'David', email: 'david@example.com' })
+        ])
+      );
+    });
+
+    it('filters data with less than or equal condition', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'age', operator: '<=', value: 25 }];
+
+      let result;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com' })
+        ])
+      );
+    });
+
+    it('filters data with not equal condition', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'age', operator: '!=', value: 25 }];
+
+      let result;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com' }),
+          expect.objectContaining({ name: 'David', email: 'david@example.com' })
+        ])
+      );
+    });
+
+    it('filters data with equality condition on string field', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'name', operator: '=', value: 'Bob' }];
+
+      let result;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com' })
+        ])
+      );
+    });
+  });
+  
 });
