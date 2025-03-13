@@ -217,7 +217,7 @@ export type Sort = {
 
 export type Pagination = {
     itemsPerPage?: number;       // Number of items per page
-    pageOffsetKey?: string;      // Initial offset as string
+    pageOffsetKey?: number | string;
 };
 
 export interface Connector {
@@ -282,7 +282,7 @@ export interface AdapterInstance {
     getConfig: () => HttpAdapter | DatabaseAdapter;
     connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
-    download(pageOptions: { limit?: number; offset?: number }): Promise<{
+    download(pageOptions: { limit?: number; offset?: number | string }): Promise<{
         data: any[];
         options?: {
             [key: string]: any; // Allow future extensions

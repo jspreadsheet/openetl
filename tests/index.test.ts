@@ -1,5 +1,5 @@
 import { Orchestrator } from '../src/index';
-import { Pipeline, Adapter, AuthConfig, Vault, Connector } from '../src/types';
+import { Pipeline, Adapter, AuthConfig, Vault, Connector, AdapterInstance } from '../src/types';
 
 let attemptCount = 0;
 
@@ -12,7 +12,7 @@ const cursorAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
     connect: jest.fn().mockResolvedValue(undefined),
     disconnect: jest.fn().mockResolvedValue(undefined),
     download: jest.fn(async ({ limit, offset }) => {
-        if (offset === 0) {
+        if (offset === undefined) {
             return { data: [{ id: 1 }, { id: 2 }], options: { nextOffset: 2 } };
         } else if (offset === 2) {
             return { data: [{ id: 3 }], options: { nextOffset: undefined } };
@@ -36,11 +36,12 @@ const cursorAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
     }
 }));
 
-const downloadFunction = async ({ limit, offset }: { limit: number, offset: number }) => {
+const downloadFunction: AdapterInstance['download'] = async ({ limit, offset }) => {
+    offset = (typeof offset === 'string' ? parseInt(offset) : (offset || 0));
     const startId = offset + 1;
     const totalItems = 6;
     const allData = Array.from(
-        { length: Math.min(limit, totalItems - offset) },
+        { length: Math.min(limit || Infinity, totalItems - offset) },
         (_, i) => ({
             id: startId + i,
             name: `Item${startId + i}`,
@@ -102,7 +103,7 @@ const failingAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
         if (attemptCount <= 2) {
             throw new Error(`Attempt ${attemptCount} failed`);
         }
-        return { data: offset === 0 ? [{ id: 1, name: 'Success after retry' }] : [] };
+        return { data: offset === undefined ? [{ id: 1, name: 'Success after retry' }] : [] };
     }),
     upload: jest.fn().mockResolvedValue(undefined),
     getConfig: () => {
@@ -137,7 +138,7 @@ const mockConnector: Connector = {
     endpoint_id: 'test',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
-    pagination: { itemsPerPage: 5, pageOffsetKey: '0' },
+    pagination: { itemsPerPage: 5 },
 };
 
 const failingConnector: Connector = {
@@ -146,7 +147,7 @@ const failingConnector: Connector = {
     endpoint_id: 'test',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
-    pagination: { itemsPerPage: 5, pageOffsetKey: '0' },
+    pagination: { itemsPerPage: 5 },
 };
 
 const cursorConnector: Connector = {
@@ -189,7 +190,7 @@ describe('Orchestrator', () => {
         const adapterInstance = mockAdapter.mock.results[0].value;
         expect(adapterInstance.connect).toHaveBeenCalled();
         expect(adapterInstance.download).toHaveBeenCalledTimes(2);
-        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 0 });
+        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: undefined });
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 5 });
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({ type: 'extract', dataCount: 5 }));
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({ type: 'extract', dataCount: 1 }));
@@ -211,7 +212,7 @@ describe('Orchestrator', () => {
         const adapterInstance = mockAdapter.mock.results[0].value;
         expect(adapterInstance.connect).toHaveBeenCalled();
         expect(adapterInstance.download).toHaveBeenCalledTimes(2);
-        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 0 });
+        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: undefined });
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 5, offset: 5 });
 
         const extractLogs = logging.mock.calls.filter(call => call[0].type === 'extract');
@@ -258,9 +259,9 @@ describe('Orchestrator', () => {
 
         const adapterInstance = failingAdapter.mock.results[0].value;
         expect(adapterInstance.download).toHaveBeenCalledTimes(3); // 2 failures + 1 success
-        expect(adapterInstance.download).toHaveBeenNthCalledWith(1, { limit: 5, offset: 0 });
-        expect(adapterInstance.download).toHaveBeenNthCalledWith(2, { limit: 5, offset: 0 });
-        expect(adapterInstance.download).toHaveBeenNthCalledWith(3, { limit: 5, offset: 0 });
+        expect(adapterInstance.download).toHaveBeenNthCalledWith(2, { limit: 5, offset: undefined });
+        expect(adapterInstance.download).toHaveBeenNthCalledWith(1, { limit: 5, offset: undefined });
+        expect(adapterInstance.download).toHaveBeenNthCalledWith(3, { limit: 5, offset: undefined });
 
         const errorLogs = logging.mock.calls.filter(call => call[0].type === 'error');
         expect(errorLogs).toHaveLength(2);
@@ -457,7 +458,7 @@ describe('Orchestrator', () => {
 
         await orchestrator.runPipeline(pipeline);
         const adapterInstance = cursorAdapter.mock.results[0].value;
-        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 2, offset: 0 });
+        expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 2, offset: undefined });
         expect(adapterInstance.download).toHaveBeenCalledWith({ limit: 2, offset: 2 });
         expect(adapterInstance.download).toHaveBeenCalledTimes(2);
         expect(logging).toHaveBeenCalledWith(expect.objectContaining({
