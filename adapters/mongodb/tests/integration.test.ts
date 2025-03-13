@@ -320,5 +320,98 @@ describe('MongoDB Adapter Integration Tests', () => {
       );
     });
   });
+
+  describe('Filtering with Filter Groups', () => {
+    const sampleUsers = [
+      { name: 'Alice', email: 'alice@example.com', age: 20, status: 'active' },
+      { name: 'Bob', email: 'bob@example.com', age: 25, status: 'inactive' },
+      { name: 'Charlie', email: 'charlie@example.com', age: 30, status: 'active' },
+      { name: 'David', email: 'david@example.com', age: 35, status: 'inactive' },
+    ];
+
+    it('filters data with AND operation in filter group', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{
+        op: 'AND',
+        filters: [
+          { field: 'age', operator: '>', value: 25 },
+          { field: 'status', operator: '=', value: 'inactive' }
+        ]
+      }];
+
+      let result: any[] = [];
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([  
+          expect.objectContaining({ name: 'David', email: 'david@example.com' })
+        ])
+      );
+      expect(result.length).toBe(1); // Ensure only one match
+    });
+
+    it('filters data with OR operation in filter group', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{
+        op: 'OR',
+        filters: [
+          { field: 'age', operator: '<=', value: 20 },
+          { field: 'status', operator: '=', value: 'inactive' }
+        ]
+      }];
+
+      let result: any[] = [];
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
+          expect.objectContaining({ name: 'Bob', email: 'bob@example.com' }),
+          expect.objectContaining({ name: 'David', email: 'david@example.com' })
+        ])
+      );
+      expect(result.length).toBe(3); // Ensure three matches
+    });
+
+    it('filters data with nested AND within OR operation', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{
+        op: 'OR',
+        filters: [
+          { field: 'age', operator: '<=', value: 20 },
+          {
+            op: 'AND',
+            filters: [
+              { field: 'age', operator: '>', value: 25 },
+              { field: 'status', operator: '=', value: 'active' }
+            ]
+          }
+        ]
+      }];
+
+      let result: any[] = [];
+      pipeline.onload = (data) => {
+        result = data;
+      };
+
+      await orchestrator.runPipeline(pipeline);
+
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice', email: 'alice@example.com' }),
+          expect.objectContaining({ name: 'Charlie', email: 'charlie@example.com' })
+        ])
+      );
+      expect(result.length).toBe(2); // Ensure two matches
+    });
+  });
   
 });
