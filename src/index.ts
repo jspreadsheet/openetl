@@ -104,7 +104,7 @@ function getPaginationFromEndpoint (
         const { endpoints } = adapterConfig;
 
         const { endpoint_id: endpointId } = connector;
-    
+
         const endpoint = endpoints.find(e => e.id === endpointId)!;
         if (!endpoint) {
             throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
@@ -121,11 +121,20 @@ function getPaginationFromEndpoint (
         paginationConfig = adapterConfig.pagination || false;
     }
 
-    if (paginationConfig && typeof paginationConfig.maxItemsPerPage !== 'undefined') {
+    if (!paginationConfig) {
+        if (typeof itemsPerPage !== 'undefined') {
+            log({
+                type: 'info',
+                message: `since the ${connector.endpoint_id} endpoint of the ${connector.adapter_id} adapter does not support pagination, the number of items per page set will be ignored`,
+            });
+
+            itemsPerPage = undefined;
+        }
+    } else if (typeof paginationConfig.maxItemsPerPage !== 'undefined') {
         if (typeof itemsPerPage === 'undefined') {
             log({
                 type: 'info',
-                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${paginationConfig.maxItemsPerPage}) will be used instead.`,
+                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${paginationConfig.maxItemsPerPage}) will be used instead`,
             })
 
             itemsPerPage = paginationConfig.maxItemsPerPage;
