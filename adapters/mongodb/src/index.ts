@@ -187,6 +187,10 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error("Collection_insert endpoint only supported for upload");
       }
 
+      if ( pageOptions.offset && pageOptions.offset < 0 ) {
+        pageOptions.offset = 0;
+      }
+
       const query = buildMongoQuery();
       const projection = buildProjection();
       const sort = buildSort();
