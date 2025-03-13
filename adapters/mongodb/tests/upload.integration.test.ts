@@ -1,5 +1,5 @@
 import { mongodb } from './../src/index';
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 import { Connector, Orchestrator } from "../../../dist";
 import { Pipeline, Vault } from "../../../dist/types";
 
@@ -202,4 +202,19 @@ describe("MongoDBAdapter Upload Method", () => {
 			])
 		);
 	});
+
+  it('Upload: fails on duplicate _id', async () => {
+    const db = realClient.db(mongoDatabase);
+    const testId = new ObjectId('1234567890abcdef12345678'); // 24-char hex string
+    await db.collection('users').insertOne({ _id: testId, name: 'PreExisting' });
+
+    pipeline.data = [{ _id: testId, name: 'Alice', email: 'alice@example.com' }];
+    pipeline.error_handling = { max_retries: 0, retry_interval: 1000, fail_on_error: true };
+
+    await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow(/duplicate key/i);
+
+    const result = await db.collection('users').find({}).toArray();
+    expect(result.length).toBe(1); // Original remains
+    expect(result[0].name).toBe('PreExisting');
+  });
 });
