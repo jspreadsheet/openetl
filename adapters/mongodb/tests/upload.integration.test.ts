@@ -87,6 +87,7 @@ describe("MongoDBAdapter Upload Method", () => {
 	afterEach(async () => {
 		const db = realClient.db(mongoDatabase);
 		await db.dropCollection("users").catch(() => {});
+    await db.dropCollection('nonexistent_collection').catch(() => {});
 	});
 
   afterEach(async () => {
@@ -95,7 +96,7 @@ describe("MongoDBAdapter Upload Method", () => {
     }
   })
 
-	it("uploads an array of data objects successfully", async () => {
+	it("Upload: uploads an array of data objects successfully", async () => {
 		const arrayData = [
 			{ name: "Alice", email: "alice@example.com" },
 			{ name: "Bob", email: "bob@example.com" },
@@ -118,8 +119,8 @@ describe("MongoDBAdapter Upload Method", () => {
 		);
 	});
 
-  /*
-	it("handles empty array upload without error", async () => {
+  
+	it("Upload: handles empty array upload without error", async () => {
 		pipeline.data = [];
 
 		await orchestrator.runPipeline(pipeline);
@@ -128,15 +129,17 @@ describe("MongoDBAdapter Upload Method", () => {
 		const result = await db.collection("users").find({}).toArray();
 
 		expect(result.length).toBe(0); // No documents inserted
-	}, 10000);
+	});
 
-	it("uploads single object with nested fields", async () => {
+  
+
+	it("Upload: uploads single object with nested fields", async () => {
 		const nestedData = {
 			name: "David",
 			email: "david@example.com",
 			address: { city: "Tokyo" },
 		};
-		pipeline.data = nestedData;
+		pipeline.data = [nestedData];
 
 		await orchestrator.runPipeline(pipeline);
 
@@ -153,9 +156,9 @@ describe("MongoDBAdapter Upload Method", () => {
 				}),
 			])
 		);
-	}, 10000);
+	});
 
-	it("uploads array with mixed data (nested and flat)", async () => {
+	it("Upload: uploads array with mixed data (nested and flat)", async () => {
 		const mixedData = [
 			{ name: "Eve", email: "eve@example.com" },
 			{
@@ -178,42 +181,25 @@ describe("MongoDBAdapter Upload Method", () => {
 				expect.objectContaining(mixedData[1]),
 			])
 		);
-	}, 10000);
+	});
 
-	it("respects fields configuration for single upload", async () => {
-		connector.fields = ["name"]; // Only include name
-		const dataWithExtra = {
-			name: "Grace",
-			email: "grace@example.com",
-			extra: "ignored",
-		};
-		pipeline.data = dataWithExtra;
-
-		await orchestrator.runPipeline(pipeline);
-
-		const db = realClient.db(mongoDatabase);
-		const result = await db.collection("users").find({}).toArray();
-
-		expect(result.length).toBe(1);
-		expect(result[0]).toHaveProperty("name", "Grace");
-		expect(result[0]).not.toHaveProperty("email");
-		expect(result[0]).not.toHaveProperty("extra");
-	}, 10000);
-
-	it("handles upload failure with error handling disabled", async () => {
-		// Simulate failure by using an invalid collection name
+	it("Upload: upload works even with non existent collection", async () => {
 		connector.config = {
 			database: mongoDatabase,
 			collection: "nonexistent_collection",
 		};
-		pipeline.data = { name: "Hank", email: "hank@example.com" };
-		pipeline.error_handling = {
-			max_retries: 0,
-			retry_interval: 1000,
-			fail_on_error: true,
-		};
+		pipeline.data = [{ name: "Hank", email: "hank@example.com" }];
 
-		await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow();
-	}, 10000);
-  */
+    await orchestrator.runPipeline(pipeline);
+
+    const db = realClient.db(mongoDatabase);
+		const result = await db.collection("nonexistent_collection").find({}).toArray();
+
+    expect(result.length).toBe(1);
+		expect(result).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ name: "Hank", email: "hank@example.com" })
+			])
+		);
+	});
 });
