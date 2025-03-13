@@ -413,5 +413,94 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result.length).toBe(2); // Ensure two matches
     });
   });
+
+  describe('Projection', () => {
+    const sampleUsers = [
+      { name: 'Alice', email: 'alice@example.com', age: 20, status: 'active' },
+      { name: 'Bob', email: 'bob@example.com', age: 25, status: 'inactive' },
+    ];
+  
+    it('returns only specified fields when fields are provided', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
+      connector.fields = ['name']; // Project only the 'name' field
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice' })
+        ])
+      );
+      expect(result!.length).toBe(1);
+      expect(result![0]).toHaveProperty('name');
+      // it should be possible to remove the _id from the response?
+      // if so, we will need to change buildProjection implementation
+      // expect(result![0]).not.toHaveProperty('_id');
+      expect(result![0]).not.toHaveProperty('email'); // Ensure 'email' is excluded
+      expect(result![0]).not.toHaveProperty('age');   // Ensure 'age' is excluded
+      expect(result![0]).not.toHaveProperty('status'); // Ensure 'status' is excluded
+    });
+  
+    it('returns all fields when no fields are specified', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
+      connector.fields = []; // No projection
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Alice',
+            email: 'alice@example.com',
+            age: 20,
+            status: 'active'
+          })
+        ])
+      );
+      expect(result!.length).toBe(1);
+      expect(result![0]).toHaveProperty('email'); // Ensure 'email' is included
+      expect(result![0]).toHaveProperty('age');   // Ensure 'age' is included
+      expect(result![0]).toHaveProperty('status'); // Ensure 'status' is included
+    });
+  
+    it('returns multiple specified fields correctly', async () => {
+      await insertUsers(sampleUsers);
+      connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
+      connector.fields = ['name', 'email']; // Project 'name' and 'email'
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Alice',
+            email: 'alice@example.com'
+          })
+        ])
+      );
+      expect(result!.length).toBe(1);
+      expect(result![0]).toHaveProperty('name');   // Ensure 'name' is included
+      expect(result![0]).toHaveProperty('email');  // Ensure 'email' is included
+      expect(result![0]).not.toHaveProperty('age');    // Ensure 'age' is excluded
+      expect(result![0]).not.toHaveProperty('status'); // Ensure 'status' is excluded
+    });
+  });
   
 });
