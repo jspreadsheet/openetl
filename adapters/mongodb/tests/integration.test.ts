@@ -88,7 +88,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     })));
   }
 
-  it('downloads data with filters, sorting, and pagination', async () => {
+  it('Download: data with filters, sorting, and pagination', async () => {
     const expectedResult = [
       { name: 'Alice', email: 'alice@example.com' },
       { name: 'Bob', email: 'bob@example.com' },
@@ -111,7 +111,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     );
   });
 
-  it('downloads all fields when none specified', async () => {
+  it('Download: all fields when none specified', async () => {
     const expectedResult = [{ name: 'Alice', email: 'alice@example.com' }];
     await insertUsers(expectedResult);
 
@@ -131,7 +131,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     );
   });
 
-  it('handles custom query for custom_query endpoint', async () => {
+  it('Download: handles custom query for custom_query endpoint', async () => {
     const db = realClient.db(mongoDatabase);
     await db.dropCollection('temptable').catch(() => {});
     await db.createCollection('temptable');
@@ -157,7 +157,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     );
   });
 
-  it('uploads data successfully', async () => {
+  it('Download: uploads data successfully', async () => {
     connector.endpoint_id = 'collection_insert';
 
     const data = [
@@ -182,7 +182,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     );
   });
 
-  it('download and upload data successfully', async () => {
+  it('Download: and upload data successfully', async () => {
     const expectedResult = [
       { name: 'Alice', email: 'alice@example.com' },
       { name: 'Bob', email: 'bob@example.com' },
@@ -218,7 +218,7 @@ describe('MongoDB Adapter Integration Tests', () => {
   });
 
 
-  describe('Filtering with Simple Conditions', () => {
+  describe('Download: Filtering with Simple Conditions', () => {
     const sampleUsers = [
       { name: 'Alice', email: 'alice@example.com', age: 20 },
       { name: 'Bob', email: 'bob@example.com', age: 25 },
@@ -226,7 +226,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       { name: 'David', email: 'david@example.com', age: 35 },
     ];
 
-    it('filters data with equality condition on numerical field', async () => {
+    it('Download: filters data with equality condition on numerical field', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'age', operator: '=', value: 25 }];
 
@@ -244,7 +244,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       );
     });
 
-    it('filters data with greater than condition', async () => {
+    it('Download: filters data with greater than condition', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'age', operator: '>', value: 25 }];
 
@@ -263,7 +263,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       );
     });
 
-    it('filters data with less than or equal condition', async () => {
+    it('Download: filters data with less than or equal condition', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'age', operator: '<=', value: 25 }];
 
@@ -282,7 +282,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       );
     });
 
-    it('filters data with not equal condition', async () => {
+    it('Download: filters data with not equal condition', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'age', operator: '!=', value: 25 }];
 
@@ -302,7 +302,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       );
     });
 
-    it('filters data with equality condition on string field', async () => {
+    it('Download: filters data with equality condition on string field', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'name', operator: '=', value: 'Bob' }];
 
@@ -321,7 +321,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     });
   });
 
-  describe('Filtering with Filter Groups', () => {
+  describe('Download: Filtering with Filter Groups', () => {
     const sampleUsers = [
       { name: 'Alice', email: 'alice@example.com', age: 20, status: 'active' },
       { name: 'Bob', email: 'bob@example.com', age: 25, status: 'inactive' },
@@ -329,7 +329,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       { name: 'David', email: 'david@example.com', age: 35, status: 'inactive' },
     ];
 
-    it('filters data with AND operation in filter group', async () => {
+    it('Download: filters data with AND operation in filter group', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{
         op: 'AND',
@@ -354,7 +354,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result.length).toBe(1); // Ensure only one match
     });
 
-    it('filters data with OR operation in filter group', async () => {
+    it('Download: filters data with OR operation in filter group', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{
         op: 'OR',
@@ -381,7 +381,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result.length).toBe(3); // Ensure three matches
     });
 
-    it('filters data with nested AND within OR operation', async () => {
+    it('Download: filters data with nested AND within OR operation', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{
         op: 'OR',
@@ -414,13 +414,13 @@ describe('MongoDB Adapter Integration Tests', () => {
     });
   });
 
-  describe('Projection', () => {
+  describe('Download: Projection', () => {
     const sampleUsers = [
       { name: 'Alice', email: 'alice@example.com', age: 20, status: 'active' },
       { name: 'Bob', email: 'bob@example.com', age: 25, status: 'inactive' },
     ];
   
-    it('returns only specified fields when fields are provided', async () => {
+    it('Download: returns only specified fields when fields are provided', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
       connector.fields = ['name']; // Project only the 'name' field
@@ -447,7 +447,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![0]).not.toHaveProperty('status'); // Ensure 'status' is excluded
     });
   
-    it('returns all fields when no fields are specified', async () => {
+    it('Download: returns all fields when no fields are specified', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
       connector.fields = []; // No projection
@@ -470,12 +470,13 @@ describe('MongoDB Adapter Integration Tests', () => {
         ])
       );
       expect(result!.length).toBe(1);
+      expect(result![0]).toHaveProperty('name');
       expect(result![0]).toHaveProperty('email'); // Ensure 'email' is included
       expect(result![0]).toHaveProperty('age');   // Ensure 'age' is included
       expect(result![0]).toHaveProperty('status'); // Ensure 'status' is included
     });
   
-    it('returns multiple specified fields correctly', async () => {
+    it('Download: returns multiple specified fields correctly', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [{ field: 'status', operator: '=', value: 'active' }];
       connector.fields = ['name', 'email']; // Project 'name' and 'email'
