@@ -196,6 +196,10 @@ function postgresql(connector, auth) {
             if (endpoint.id === "table_insert") {
                 throw new Error("Table_insert endpoint only supported for upload");
             }
+            if (typeof pageOptions.offset === 'string') {
+                throw new Error('table_query and custom_query endpoints of the PostgreSQL adapter don\'t accept a string as offset');
+            }
+            const offset = typeof pageOptions.offset === 'string' ? parseInt(pageOptions.offset) : pageOptions.offset;
             const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
             log("Executing query:", query);
             try {
