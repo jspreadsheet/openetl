@@ -56,7 +56,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       }],
       sort: [{ type: 'asc', field: 'name' }],
       transform: [],
-      pagination: { itemsPerPage: 10 },
+      pagination: { itemsPerPage: 10 }
     };
 
     pipeline = {
@@ -504,14 +504,14 @@ describe('MongoDB Adapter Integration Tests', () => {
     });
   });
 
-  describe('Sorting', () => {
+  describe('Download: Sorting', () => {
     const sampleUsers = [
       { name: 'Charlie', email: 'charlie@example.com', age: 30 },
       { name: 'Alice', email: 'alice@example.com', age: 20 },
       { name: 'Bob', email: 'bob@example.com', age: 25 },
     ];
   
-    it('sorts data in ascending order by name', async () => {
+    it('Download: sorts data in ascending order by name', async () => {
       await insertUsers(sampleUsers);
       connector.filters = []; // No filters to get all records
       connector.fields = ['name', 'email']; // Project name and email
@@ -538,7 +538,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![2].name).toBe('Charlie');
     });
   
-    it('sorts data in descending order by name', async () => {
+    it('Download: sorts data in descending order by name', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [];
       connector.fields = ['name', 'email'];
@@ -564,7 +564,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![2].name).toBe('Alice');
     });
   
-    it('sorts data in ascending order by age', async () => {
+    it('Download: sorts data in ascending order by age', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [];
       connector.fields = ['name', 'email', 'age']; // Include age in projection
@@ -590,7 +590,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![2].age).toBe(30);
     });
   
-    it('sorts data in descending order by age', async () => {
+    it('Download: sorts data in descending order by age', async () => {
       await insertUsers(sampleUsers);
       connector.filters = [];
       connector.fields = ['name', 'email', 'age'];
@@ -614,6 +614,121 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![0].age).toBe(30);
       expect(result![1].age).toBe(25);
       expect(result![2].age).toBe(20);
+    });
+  });
+
+  describe('Download: Pagination', () => {
+    jest.setTimeout(10000);
+    beforeEach(async () => {
+      // Insert 100 documents with padded names for correct alphabetical sorting
+      const users = Array.from({ length: 100 }, (_, i) => {
+        const paddedIndex = String(i + 1).padStart(3, '0'); // e.g., 001, 002, ..., 100
+        return {
+          name: `User${paddedIndex}`,
+          email: `user${paddedIndex}@example.com`,
+          age: 20 + (i % 80),
+        };
+      });
+      await insertUsers(users);
+    });
+  
+    it('Download: returns first page of 20 documents with offset 0', async () => {
+      connector.filters = []; // No filters to get all records
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }]; // Consistent sorting
+      connector.pagination = { itemsPerPage: 20 }; // Ensure connector reflects limit
+      connector.limit = 20;
+      let result: any[] = [];
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline); // Offset defaults to 0 in getDataSerially
+  
+      expect(result!.length).toBe(20);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User001', email: 'user001@example.com' }),
+          expect.objectContaining({ name: 'User020', email: 'user020@example.com' }),
+        ])
+      );
+      expect(result![0].name).toBe('User001');
+      expect(result![19].name).toBe('User020');
+    });
+  
+    it('Download: returns second page of 20 documents with offset 20', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '20' }; // Set offset to 20
+      connector.limit = 20;
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result!.length).toBe(20);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User021', email: 'user021@example.com' }),
+          expect.objectContaining({ name: 'User040', email: 'user040@example.com' }),
+        ])
+      );
+      expect(result![0].name).toBe('User021');  // First item of second page
+      expect(result![19].name).toBe('User040'); // Last item of second page
+    });
+  
+    it('Download: returns third page of 20 documents with offset 40', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '40' }; // Set offset to 40
+      connector.limit = 20;
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result!.length).toBe(20);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User041', email: 'user041@example.com' }),
+          expect.objectContaining({ name: 'User060', email: 'user060@example.com' }),
+        ])
+      );
+      expect(result![0].name).toBe('User041');  // First item of third page
+      expect(result![19].name).toBe('User060'); // Last item of third page
+    });
+  
+    it('Download: returns last partial page with offset 80', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '80' }; // Set offset to 80
+      connector.limit = 20;
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result!.length).toBe(20); // Still 20 items, as 100 total fits 5 full pages
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User081', email: 'user081@example.com' }),
+          expect.objectContaining({ name: 'User100', email: 'user100@example.com' }),
+        ])
+      );
+      expect(result![0].name).toBe('User081');   // First item of last page
+      expect(result![19].name).toBe('User100'); // Last item of last page
     });
   });
   
