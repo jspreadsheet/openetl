@@ -217,4 +217,19 @@ describe("MongoDBAdapter Upload Method", () => {
     expect(result.length).toBe(1); // Original remains
     expect(result[0].name).toBe('PreExisting');
   });
+
+  it('Upload: fails on duplicate unique field (email)', async () => {
+    const db = realClient.db(mongoDatabase);
+    await db.collection('users').createIndex({ email: 1 }, { unique: true });
+    await db.collection('users').insertOne({ name: 'PreExisting', email: 'alice@example.com' });
+  
+    pipeline.data = [{ name: 'Alice', email: 'alice@example.com' }];
+    pipeline.error_handling = { max_retries: 0, retry_interval: 1000, fail_on_error: true };
+  
+    await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow(/duplicate key/i);
+  
+    const result = await db.collection('users').find({}).toArray();
+    expect(result.length).toBe(1);
+    expect(result[0].name).toBe('PreExisting');
+  }, 10000);
 });
