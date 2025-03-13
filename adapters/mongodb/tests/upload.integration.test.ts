@@ -1,7 +1,7 @@
 import { mongodb } from './../src/index';
 import { MongoClient, ObjectId } from "mongodb";
 import { Connector, Orchestrator } from "../../../dist";
-import { Pipeline, Vault } from "../../../dist/types";
+import { Pipeline, PipelineEvent, Vault } from "../../../dist/types";
 
 describe("MongoDBAdapter Upload Method", () => {
 	let connector: Connector;
@@ -231,5 +231,55 @@ describe("MongoDBAdapter Upload Method", () => {
     const result = await db.collection('users').find({}).toArray();
     expect(result.length).toBe(1);
     expect(result[0].name).toBe('PreExisting');
+  });
+
+  it('Upload: successfully inserts 5 items with itemsPerPage=1', async () => {
+    // Prepare data: 5 items to upload
+    const uploadData = [
+      { name: 'Alice', email: 'alice@example.com' },
+      { name: 'Bob', email: 'bob@example.com' },
+      { name: 'Charlie', email: 'charlie@example.com' },
+      { name: 'David', email: 'david@example.com' },
+      { name: 'Eve', email: 'eve@example.com' },
+    ];
+    pipeline.data = uploadData;
+  
+    // Configure connector with itemsPerPage = 1
+    connector.pagination = { itemsPerPage: 1 };
+    connector.endpoint_id = 'collection_insert';
+    connector.config = { database: mongoDatabase, collection: 'users' };
+    connector.fields = ['name', 'email'];
+    connector.filters = [];
+    connector.sort = [];
+  
+    // Optional: Capture log events to verify batching (for extra assurance)
+    const logEvents: PipelineEvent[] = [];
+    pipeline.logging = (event) => logEvents.push(event);
+  
+    // Run the pipeline
+    await orchestrator.runPipeline(pipeline);
+  
+    // Verify all 5 items are in the collection
+    const db = realClient.db(mongoDatabase);
+    const result = await db.collection('users').find({}).toArray();
+  
+    expect(result.length).toBe(5);
+    expect(result).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining(uploadData[0]),
+        expect.objectContaining(uploadData[1]),
+        expect.objectContaining(uploadData[2]),
+        expect.objectContaining(uploadData[3]),
+        expect.objectContaining(uploadData[4]),
+      ])
+    );
+  
+    // Optional: Verify 5 upload events occurred
+    const uploadEvents = logEvents.filter(event => event.type === 'load');
+    expect(uploadEvents.length).toBe(5);
+    uploadEvents.forEach((event, index) => {
+      expect(event.message).toMatch(`Uploaded batch at offset ${index}`);
+      expect(event.dataCount).toBe(1);
+    });
   });
 });
