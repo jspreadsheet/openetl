@@ -75,6 +75,12 @@ describe('MongoDB Adapter Integration Tests', () => {
   });
 
   afterEach(async () => {
+		const db = realClient.db(mongoDatabase);
+		await db.dropCollection("users").catch(() => {});
+	});
+
+
+  afterEach(async () => {
     if (realClient) {
       await realClient.close();
     }
