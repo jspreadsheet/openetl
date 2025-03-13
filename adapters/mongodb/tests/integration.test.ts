@@ -730,6 +730,30 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![0].name).toBe('User081');   // First item of last page
       expect(result![19].name).toBe('User100'); // Last item of last page
     });
+
+    it('Download: returns all items starting from page 3 (offset 40)', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '40' };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(60); // Expect 20 items (81-100)
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User041', email: 'user041@example.com' }),
+          expect.objectContaining({ name: 'User100', email: 'user100@example.com' }),
+        ])
+      );
+      expect(result![0].name).toBe('User041');  // First item of page 5
+      expect(result![59].name).toBe('User100'); // Last item of dataset
+    });
   });
   
 });
