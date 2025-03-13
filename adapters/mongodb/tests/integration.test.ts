@@ -80,7 +80,7 @@ describe('MongoDB Adapter Integration Tests', () => {
     }
   });
 
-  async function insertUsers(users: {email: string; name: string; status?: string}[]) {
+  async function insertUsers(users: {email: string; name: string; status?: string; address?: any}[]) {
     const db = realClient.db(mongoDatabase);
     await db.collection('users').insertMany(users.map(u => ({
       ...u,
@@ -1004,6 +1004,154 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result![1].address.city).toBe('New York');
       expect(result![2].address.city).toBe('Paris');
     });
+
+
+    it('Download: filters on non-existent nested field returns empty result', async () => {
+      connector.filters = [{ field: 'address.state', operator: '=', value: 'California' }];
+      connector.fields = ['name', 'email', 'address.city'];
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(0);
+    });
+
+    it('Download: filters on nested field when some documents lack it', async () => {
+      await insertUsers([
+        { name: 'User4', email: 'user4@example.com', address: { country: 'Canada' } }, // No city
+      ]);
+    
+      connector.filters = [{ field: 'address.city', operator: '=', value: 'New York' }];
+      connector.fields = ['name', 'email', 'address.city'];
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(1);
+      expect(result![0].name).toBe('User1');
+    });
+
+    it('Download: projects non-existent nested field without error', async () => {
+      connector.filters = [];
+      connector.fields = ['address.state'];
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(3);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ address: {} }), // Empty address object
+          expect.objectContaining({ address: {} }),
+          expect.objectContaining({ address: {} }),
+        ])
+      );
+      expect(result![0]).not.toHaveProperty('address.city');
+    });
+
+    it('Download: sorts on non-existent nested field without error', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email', 'address.city'];
+      connector.sort = [{ field: 'address.state', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(3);
+      // Order might be insertion order since all lack address.state
+      expect(result).toHaveLength(3); // No specific order assertion due to undefined behavior
+    });
+
+    it('Download: filters on nested field with empty string', async () => {
+      await insertUsers([
+        { name: 'User4', email: 'user4@example.com', address: { city: '' } },
+      ]);
+    
+      connector.filters = [{ field: 'address.city', operator: '=', value: '' }];
+      connector.fields = ['name', 'email', 'address.city'];
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(1);
+      expect(result![0].name).toBe('User4');
+      expect(result![0].address.city).toEqual('');
+    });
+
+    it('Download: projects invalid nested path gracefully', async () => {
+      connector.filters = [];
+      connector.fields = ['address.city.name']; // Invalid depth
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(3);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ address: {} }), // No city.name exists
+          expect.objectContaining({ address: {} }),
+          expect.objectContaining({ address: {} }),
+        ])
+      );
+    });
+
+    it('Download: filters on deeply nested field', async () => {
+      await insertUsers([
+        { name: 'User4', email: 'user4@example.com', address: { city: 'Tokyo', location: { street: 'Shibuya' } } },
+      ]);
+    
+      connector.filters = [{ field: 'address.location.street', operator: '=', value: 'Shibuya' }];
+      connector.fields = ['name', 'email', 'address.city', 'address.location.street'];
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(1);
+      expect(result![0].name).toBe('User4');
+      expect(result![0].address.location.street).toBe('Shibuya');
+    });
+
   });
 
   
