@@ -913,5 +913,98 @@ describe('MongoDB Adapter Integration Tests', () => {
       expect(result!.length).toBe(0);
     });
   });
+
+
+  describe('Download: Nested Field Operations', () => {
+    const sampleUsers = [
+      { name: 'User1', email: 'user1@example.com', address: { city: 'New York', country: 'USA' } },
+      { name: 'User2', email: 'user2@example.com', address: { city: 'London', country: 'UK' } },
+      { name: 'User3', email: 'user3@example.com', address: { city: 'Paris', country: 'France' } },
+    ];
+  
+    beforeEach(async () => {
+      await insertUsers(sampleUsers);
+    });
+  
+    it('Download: filters by nested field address.city', async () => {
+      connector.filters = [{ field: 'address.city', operator: '=', value: 'New York' }];
+      connector.fields = ['name', 'email', 'address.city'];
+      connector.sort = []; // No sorting for this test
+      connector.pagination = { itemsPerPage: 10 }; // Small page size to ensure all fit
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result!.length).toBe(1);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'User1',
+            email: 'user1@example.com',
+            address: { city: 'New York' },
+          }),
+        ])
+      );
+      expect(result![0].name).toBe('User1');
+    });
+  
+    it('Download: projects only nested field address.city', async () => {
+      connector.filters = []; // No filters to get all records
+      connector.fields = ['address.city']; // Project only address.city
+      connector.sort = [];
+      connector.pagination = { itemsPerPage: 10 };
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result!.length).toBe(3);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ address: { city: 'New York' } }),
+          expect.objectContaining({ address: { city: 'London' } }),
+          expect.objectContaining({ address: { city: 'Paris' } }),
+        ])
+      );
+      expect(result![0]).not.toHaveProperty('name');
+      expect(result![0]).not.toHaveProperty('email');
+      expect(result![0]).not.toHaveProperty('address.country');
+    });
+  
+    it('Download: sorts by nested field address.city in ascending order', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email', 'address.city'];
+      connector.sort = [{ field: 'address.city', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 10 };
+  
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+  
+      await orchestrator.runPipeline(pipeline);
+  
+      expect(result!.length).toBe(3);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User2', email: 'user2@example.com', address: { city: 'London' } }),
+          expect.objectContaining({ name: 'User1', email: 'user1@example.com', address: { city: 'New York' } }),
+          expect.objectContaining({ name: 'User3', email: 'user3@example.com', address: { city: 'Paris' } }),
+        ])
+      );
+      // Verify exact order
+      expect(result![0].address.city).toBe('London');
+      expect(result![1].address.city).toBe('New York');
+      expect(result![2].address.city).toBe('Paris');
+    });
+  });
+
   
 });
