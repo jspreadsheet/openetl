@@ -633,10 +633,10 @@ describe('MongoDB Adapter Integration Tests', () => {
     });
   
     it('Download: returns first page of 20 documents with offset 0', async () => {
-      connector.filters = []; // No filters to get all records
+      connector.filters = [];
       connector.fields = ['name', 'email'];
-      connector.sort = [{ field: 'name', type: 'asc' }]; // Consistent sorting
-      connector.pagination = { itemsPerPage: 20 }; // Ensure connector reflects limit
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20 };
       connector.limit = 20;
       let result: any[] = [];
       pipeline.onload = (data) => {
@@ -660,7 +660,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       connector.filters = [];
       connector.fields = ['name', 'email'];
       connector.sort = [{ field: 'name', type: 'asc' }];
-      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '20' }; // Set offset to 20
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '20' };
       connector.limit = 20;
   
       let result: any[] | null = null;
@@ -685,7 +685,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       connector.filters = [];
       connector.fields = ['name', 'email'];
       connector.sort = [{ field: 'name', type: 'asc' }];
-      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '40' }; // Set offset to 40
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '40' };
       connector.limit = 20;
   
       let result: any[] | null = null;
@@ -710,7 +710,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       connector.filters = [];
       connector.fields = ['name', 'email'];
       connector.sort = [{ field: 'name', type: 'asc' }];
-      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '80' }; // Set offset to 80
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '80' };
       connector.limit = 20;
   
       let result: any[] | null = null;
@@ -744,15 +744,152 @@ describe('MongoDB Adapter Integration Tests', () => {
     
       await orchestrator.runPipeline(pipeline);
     
-      expect(result!.length).toBe(60); // Expect 20 items (81-100)
+      expect(result!.length).toBe(60);
       expect(result).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ name: 'User041', email: 'user041@example.com' }),
           expect.objectContaining({ name: 'User100', email: 'user100@example.com' }),
         ])
       );
-      expect(result![0].name).toBe('User041');  // First item of page 5
-      expect(result![59].name).toBe('User100'); // Last item of dataset
+      expect(result![0].name).toBe('User041');
+      expect(result![59].name).toBe('User100');
+    });
+
+    it('Download: returns empty result when offset exceeds total items', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '100' };
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(0);
+    });
+
+    it('Download: returns all items when itemsPerPage exceeds dataset size', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 200 };
+      connector.limit = 200;
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(100);
+      expect(result![0].name).toBe('User001');
+      expect(result![99].name).toBe('User100');
+    });
+
+    it('Download: handles zero items per page', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 0 };
+      // No connector.limit to test default behavior
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      // Expect all items since limit: 0 means no limit in MongoDB
+      expect(result!.length).toBe(100);
+      expect(result![0].name).toBe('User001');
+      expect(result![99].name).toBe('User100');
+    });
+
+    it('Download: returns partial last page with offset 90', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '90' };
+      connector.limit = 20;
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(10);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'User091', email: 'user091@example.com' }),
+          expect.objectContaining({ name: 'User100', email: 'user100@example.com' }),
+        ])
+      );
+      expect(result![0].name).toBe('User091');
+      expect(result![9].name).toBe('User100');
+    });
+
+    it('Download: respects total items limit smaller than page size', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20 };
+      connector.limit = 5; // Fetch only 5 items
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(5);
+      expect(result![0].name).toBe('User001');
+      expect(result![4].name).toBe('User005');
+    });
+
+    it('Download: handles invalid offset format by defaulting to 0', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: 'invalid' };
+      connector.limit = 20;
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(20);
+      expect(result![0].name).toBe('User001');
+      expect(result![19].name).toBe('User020');
+    });
+
+    it('Download: treats negative offset as offset 0', async () => {
+      connector.filters = [];
+      connector.fields = ['name', 'email'];
+      connector.sort = [{ field: 'name', type: 'asc' }];
+      connector.pagination = { itemsPerPage: 20, pageOffsetKey: '-20' };
+      connector.limit = 20;
+    
+      let result: any[] | null = null;
+      pipeline.onload = (data) => {
+        result = data;
+      };
+    
+      await orchestrator.runPipeline(pipeline);
+    
+      expect(result!.length).toBe(20);
+      expect(result![0].name).toBe('User001');
+      expect(result![19].name).toBe('User020');
     });
 
   });
@@ -760,7 +897,6 @@ describe('MongoDB Adapter Integration Tests', () => {
 
   describe('Download: Pagination - Empty Collection', () => {
     it('Download: handles empty dataset with offset 0', async () => {
-      // No users inserted (empty collection)
       connector.filters = [];
       connector.fields = ['name', 'email'];
       connector.sort = [{ field: 'name', type: 'asc' }];
