@@ -231,5 +231,5 @@ describe("MongoDBAdapter Upload Method", () => {
     const result = await db.collection('users').find({}).toArray();
     expect(result.length).toBe(1);
     expect(result[0].name).toBe('PreExisting');
-  }, 10000);
+  });
 });
