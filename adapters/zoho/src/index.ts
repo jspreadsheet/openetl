@@ -10,6 +10,8 @@
 import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
+const maxItemsPerPage = 100;
+
 const ZohoAdapter: HttpAdapter = {
   id: "zoho-adapter",
   name: "Zoho CRM Adapter",
@@ -31,6 +33,10 @@ const ZohoAdapter: HttpAdapter = {
     provider: "zoho",
     description: "Adapter for Zoho CRM API",
     version: "v3", // Using Zoho CRM API v3 as of March 2025
+  },
+  pagination: {
+    type: 'cursor',
+    maxItemsPerPage,
   },
   endpoints: [
     // CRM Modules
@@ -273,8 +279,9 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   return {
-    paginationType: 'offset',
-    maxItemsPerPage,
+    getConfig: () => {
+      return ZohoAdapter
+    },
     connect: async function(): Promise<void> {
       const config = await buildRequestConfig();
       try {
