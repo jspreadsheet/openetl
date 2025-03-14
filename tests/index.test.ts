@@ -24,14 +24,22 @@ const cursorAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
         return {
             id: '',
             name: '',
-            type: "database",
+            type: "http",
+            base_url: '',
             action: [],
             credential_type: "basic",
             config: [],
             pagination: {
                 type: 'cursor',
             },
-            endpoints: [],
+            endpoints: [
+                {
+                    id: "create",
+                    path: "",
+                    method: "GET",
+                    supported_actions: ["download"],
+                }
+            ],
         }
     }
 }));
@@ -69,7 +77,13 @@ const mockAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn((connector: Connecto
             pagination: {
                 type: 'offset',
             },
-            endpoints: [],
+            endpoints: [
+                {
+                    id: 'table_query',
+                    query_type: "table",
+                    supported_actions: ["download", "sync"],
+                }
+            ],
         }
     }
 }));
@@ -117,7 +131,13 @@ const failingAdapter: jest.Mock<ReturnType<Adapter>> = jest.fn(() => ({
             pagination: {
                 type: 'offset',
             },
-            endpoints: [],
+            endpoints: [
+                {
+                    id: 'table_query',
+                    query_type: "table",
+                    supported_actions: ["download", "sync"],
+                }
+            ],
         }
     }
 }));
@@ -135,7 +155,7 @@ const mockVault: Vault = {
 const mockConnector: Connector = {
     id: 'mock-source',
     adapter_id: 'mockAdapter',
-    endpoint_id: 'test',
+    endpoint_id: 'table_query',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
     pagination: { itemsPerPage: 5 },
@@ -144,7 +164,7 @@ const mockConnector: Connector = {
 const failingConnector: Connector = {
     id: 'mock-source',
     adapter_id: 'failingAdapter',
-    endpoint_id: 'test',
+    endpoint_id: 'table_query',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
     pagination: { itemsPerPage: 5 },
@@ -153,7 +173,7 @@ const failingConnector: Connector = {
 const cursorConnector: Connector = {
     id: 'mock-source',
     adapter_id: 'cursorAdapter',
-    endpoint_id: 'test',
+    endpoint_id: 'create',
     credential_id: 'mock-auth',
     fields: ['id', 'name'],
     pagination: { itemsPerPage: 2 },

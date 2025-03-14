@@ -119,7 +119,9 @@ export interface DatabaseAdapter extends BaseAdapter {
         query_type: "table" | "custom";
         description?: string;
         supported_actions: Array<"download" | "upload" | "sync">;  // Added "upload"
-        pagination?: boolean;
+        settings?: {
+            pagination?: AdapterPagination | false;
+        };
     }>;
 }
 

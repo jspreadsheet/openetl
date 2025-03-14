@@ -33,7 +33,15 @@ const MySQLAdapter: DatabaseAdapter = {
     },
     endpoints: [
         { id: "table_query", query_type: "table", description: "Query a specific table", supported_actions: ["download", "sync"] },
-        { id: "custom_query", query_type: "custom", description: "Run a custom SQL query", supported_actions: ["download"] },
+        {
+            id: "custom_query",
+            query_type: "custom",
+            description: "Run a custom SQL query",
+            supported_actions: ["download"],
+            settings: {
+                pagination: false,
+            }
+        },
         { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
     ],
     pagination: {

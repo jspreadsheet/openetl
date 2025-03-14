@@ -22305,12 +22305,28 @@ const MySQLAdapter = {
     },
     endpoints: [
         { id: "table_query", query_type: "table", description: "Query a specific table", supported_actions: ["download", "sync"] },
-        { id: "custom_query", query_type: "custom", description: "Run a custom SQL query", supported_actions: ["download"] },
+        {
+            id: "custom_query",
+            query_type: "custom",
+            description: "Run a custom SQL query",
+            supported_actions: ["download"],
+            settings: {
+                pagination: false,
+            }
+        },
         { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
     ],
+    pagination: {
+        type: 'offset',
+    }
 };
 exports.MySQLAdapter = MySQLAdapter;
 function mysqlAdapter(connector, auth) {
+    const log = function (...args) {
+        if (connector.debug) {
+            console.log(...arguments);
+        }
+    };
     const endpoint = MySQLAdapter.endpoints.find(e => e.id === connector.endpoint_id);
     if (!endpoint) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in MySQL adapter`);
@@ -22388,11 +22404,13 @@ function mysqlAdapter(connector, auth) {
         const fieldList = fields.map(f => `\`${f}\``).join(', ');
         const valueList = values.join(', ');
         const query = `INSERT INTO \`${database}\`.\`${table}\` (${fieldList}) VALUES ${valueList}`;
-        console.log("Generated query:", query); // Debug output to verify the string
+        log("Generated query:", query); // Debug output to verify the string
         return query;
     }
     return {
-        paginationType: 'offset',
+        getConfig: function () {
+            return MySQLAdapter;
+        },
         connect: async function () {
             if (!isBasicAuth(auth)) {
                 throw new Error("MySQL adapter requires basic authentication");
@@ -22412,10 +22430,10 @@ function mysqlAdapter(connector, auth) {
                     : defaultConfig.port,
             };
             try {
-                console.log("Connecting to MySQL...");
+                log("Connecting to MySQL...");
                 connection = await promise_1.default.createConnection(config);
                 await connection.execute('SELECT 1');
-                console.log("Connection successful");
+                log("Connection successful");
             }
             catch (error) {
                 console.error("Connection test failed:", error.message);
@@ -22424,10 +22442,10 @@ function mysqlAdapter(connector, auth) {
         },
         disconnect: async function () {
             try {
-                console.log("Closing MySQL connection...");
+                log("Closing MySQL connection...");
                 if (connection) {
                     await connection.end();
-                    console.log("Connection closed successfully");
+                    log("Connection closed successfully");
                 }
             }
             catch (error) {
@@ -22440,10 +22458,10 @@ function mysqlAdapter(connector, auth) {
                 throw new Error("Table_insert endpoint only supported for upload");
             }
             const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
-            console.log("Executing query:", query);
+            log("Executing query:", query);
             try {
                 const [rows] = await connection.execute(query);
-                console.log("Downloaded rows:", rows.length);
+                log("Downloaded rows:", rows.length);
                 return {
                     data: rows
                 };
@@ -22458,10 +22476,10 @@ function mysqlAdapter(connector, auth) {
                 throw new Error("Upload only supported for table_insert endpoint");
             }
             const query = buildInsertQuery(data);
-            console.log("Executing insert:", query);
+            log("Executing insert:", query);
             try {
                 await connection.execute(query);
-                console.log("Uploaded rows:", data.length);
+                log("Uploaded rows:", data.length);
             }
             catch (error) {
                 console.error("Upload error:", error.message);
