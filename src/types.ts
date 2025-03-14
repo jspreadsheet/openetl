@@ -119,7 +119,9 @@ export interface DatabaseAdapter extends BaseAdapter {
         query_type: "table" | "custom";
         description?: string;
         supported_actions: Array<"download" | "upload" | "sync">;  // Added "upload"
-        pagination?: boolean;
+        settings?: {
+            pagination?: AdapterPagination | false;
+        };
     }>;
 }
 
@@ -127,7 +129,7 @@ export interface DatabaseAdapter extends BaseAdapter {
 export type Filter = {
     field: string;
     operator: string;
-    value: string;
+    value: string | number;
 };
 
 export type FilterGroup = {
