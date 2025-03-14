@@ -51,6 +51,7 @@ const MongoDBAdapter: DatabaseAdapter = {
       supported_actions: ["upload"]
     },
   ],
+  pagination: { type: 'offset' }
 };
 
 function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
@@ -136,7 +137,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   return {
-    paginationType: 'offset',
+    getConfig: () => MongoDBAdapter,
     connect: async function() {
       if (!isBasicAuth(auth)) {
         throw new Error("MongoDB adapter requires basic authentication");
@@ -187,7 +188,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error("Collection_insert endpoint only supported for upload");
       }
 
-      if ( pageOptions.offset && pageOptions.offset < 0 ) {
+      if ( pageOptions.offset && Number(pageOptions.offset) < 0 ) {
         pageOptions.offset = 0;
       }
 
@@ -203,7 +204,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         if (projection) cursor = cursor.project(projection);
         if (sort) cursor = cursor.sort(sort);
         if (pageOptions.limit) cursor = cursor.limit(pageOptions.limit);
-        if (pageOptions.offset) cursor = cursor.skip(pageOptions.offset);
+        if (pageOptions.offset) cursor = cursor.skip(Number(pageOptions.offset));
 
         const results = await cursor.toArray();
         console.log("Downloaded documents:", results.length);

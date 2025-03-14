@@ -1,5 +1,5 @@
 import { Orchestrator } from '../../../src/index'; // Adjust path as needed
-import { Connector, Pipeline, Vault, AdapterInstance } from '../../../src/types';
+import { Connector, Pipeline, Vault, AdapterInstance, DatabaseAdapter } from '../../../src/types';
 
 describe('Orchestrator Unit Tests - Upload Batching', () => {
   let orchestrator: ReturnType<typeof Orchestrator>;
@@ -7,6 +7,53 @@ describe('Orchestrator Unit Tests - Upload Batching', () => {
   let connector: Connector;
   let pipeline: Pipeline;
   let vault: Vault;
+  const MongoDBAdapter: DatabaseAdapter = {
+    id: "mongodb",
+    name: "MongoDB Database Adapter",
+    type: "database",
+    action: ["download", "upload", "sync"],
+    config: [
+      {
+        name: 'database',
+        required: true,
+      },
+      {
+        name: 'collection',
+        required: true,
+      },
+      {
+        name: 'custom_query',
+        required: false,
+      },
+    ],
+    credential_type: "basic",
+    metadata: {
+      provider: "mongodb",
+      description: "Adapter for MongoDB database operations",
+      version: "1.0",
+    },
+    endpoints: [
+      {
+        id: "collection_query",
+        query_type: "table",
+        description: "Query a specific collection",
+        supported_actions: ["download", "sync"]
+      },
+      {
+        id: "custom_query",
+        query_type: "custom",
+        description: "Run a custom MongoDB query",
+        supported_actions: ["download"]
+      },
+      {
+        id: "collection_insert",
+        query_type: "table",
+        description: "Insert into a specific collection",
+        supported_actions: ["upload"]
+      },
+    ],
+    pagination: { type: 'offset' }
+  };
 
   beforeEach(() => {
     // Mock adapter with upload method
@@ -15,7 +62,7 @@ describe('Orchestrator Unit Tests - Upload Batching', () => {
       disconnect: jest.fn().mockResolvedValue(undefined),
       upload: jest.fn().mockResolvedValue(undefined),
       download: jest.fn().mockResolvedValue({ data: [] }), // Required but not used here
-      paginationType: 'offset',
+      getConfig: () => MongoDBAdapter
     };
 
     // Mock adapter factory
