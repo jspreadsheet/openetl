@@ -208,7 +208,11 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         }
 
         config.params.per_page = limit;
-        config.params.page = offset ? Math.floor(offset / limit) + 1 : 1;
+        const page =  offset ? Math.floor(Number(offset)/limit) + 1 : 1;
+
+        if (page) {
+            config.params.page = page;
+        }
 
         const response = await axios.get(`${ZohoAdapter.base_url}${endpoint.path}`, config);
         const { data, info } = response.data;
@@ -276,7 +280,12 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         },
 
         download: async function (pageOptions) {
+            if (!endpoint.supported_actions.includes('download')) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
+            }
+
             log('inside download..')
+
             try {
                 return await download(pageOptions);
             } catch (error: any) {
@@ -295,7 +304,12 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         },
 
         upload: async function (data: any[]): Promise<void> {
+            if (!endpoint.supported_actions.includes('upload')) {
+                throw new Error(`${endpoint.id} endpoint don't support upload`);
+            }
+
             log('inside upload..')
+            
             const config = await buildRequestConfig();
             try {
                 await axios.post(
