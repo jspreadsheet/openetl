@@ -134,12 +134,12 @@ function twitter(connector: Connector, auth: AuthConfig): AdapterInstance {
       const params = buildQueryParams();
       if (pageOptions.limit && endpoint.settings?.pagination) {
         // check this
-        params.limitKey = String(pageOptions.limit);
+        params.max_results = String(pageOptions.limit);
       }
-      if (pageOptions.offset && endpoint.settings?.pagination) {
+      /*if (pageOptions.offset && endpoint.settings?.pagination) {
          // check this
         params.offset = String(pageOptions.offset);
-      }
+      }*/
 
       const url = `${TwitterAdapter.base_url}${endpoint.path}`;
 
