@@ -327,7 +327,8 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
 
         config.params.limit = limit;
 
-        const after = typeof offset !== 'undefined' && offset > 0 ? offset.toString() : undefined;
+        const after = typeof offset === 'number' ? offset.toString() : offset;
+
         if (after) {
             config.params.after = after;
         }
@@ -401,6 +402,10 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         },
 
         download: async function(pageOptions) {
+            if (!endpoint.supported_actions.includes('download')) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
+            }
+
             try {
                 return await download(pageOptions);
             } catch (error: any) {
@@ -436,6 +441,10 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         },
 
         upload: async function(data: any[]): Promise<void> {
+            if (!endpoint.supported_actions.includes('upload')) {
+                throw new Error(`${endpoint.id} endpoint don't support upload`);
+            }
+
             const config = await buildRequestConfig();
 
             try {

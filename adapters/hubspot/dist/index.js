@@ -358,7 +358,7 @@ function hubspot(connector, auth) {
             throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
         }
         config.params.limit = limit;
-        const after = typeof offset !== 'undefined' && offset > 0 ? offset.toString() : undefined;
+        const after = typeof offset === 'number' ? offset.toString() : offset;
         if (after) {
             config.params.after = after;
         }
@@ -425,6 +425,9 @@ function hubspot(connector, auth) {
             }
         },
         download: async function (pageOptions) {
+            if (!endpoint.supported_actions.includes('download')) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
+            }
             try {
                 return await download(pageOptions);
             }
@@ -460,6 +463,9 @@ function hubspot(connector, auth) {
             }
         },
         upload: async function (data) {
+            if (!endpoint.supported_actions.includes('upload')) {
+                throw new Error(`${endpoint.id} endpoint don't support upload`);
+            }
             const config = await buildRequestConfig();
             try {
                 await axios_1.default.post(`${HubSpotAdapter.base_url}${endpoint.path}`, {
