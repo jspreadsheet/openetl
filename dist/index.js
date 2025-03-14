@@ -35,7 +35,6 @@ async function delay(ms) {
 }
 // Default configuration values
 const DEFAULT_CONFIG = {
-    ITEMS_PER_PAGE: 100,
     TOTAL_ITEMS_LIMIT: 1000000,
     TIMEOUT_MS: 30000,
 };
@@ -53,7 +52,7 @@ async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartT
         try {
             result = await sourceAdapter.download({
                 limit: itemsPerPage,
-                offset: typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset
+                offset: pageOffset
             });
         }
         catch (error) {
@@ -72,24 +71,15 @@ async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartT
     }
     throw new Error('max_retries reached');
 }
-async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
-    const rl = pipeline.rate_limiting || {
-        requests_per_second: Infinity,
-        max_retries_on_rate_limit: 0
-    };
-    const minIntervalMs = rl.requests_per_second === Infinity
-        ? 0
-        : 1000 / rl.requests_per_second;
-    // Initialize pagination parameters
-    let itemsPerPage = pipeline.source.pagination?.itemsPerPage || undefined;
-    const adapterConfig = sourceAdapter.getConfig();
+function getPaginationFromEndpoint(connector, adapter, itemsPerPage, log) {
+    const adapterConfig = adapter.getConfig();
     let paginationConfig;
     if (adapterConfig.type === 'http') {
         const { endpoints } = adapterConfig;
-        const { endpoint_id: endpointId } = pipeline.source;
+        const { endpoint_id: endpointId } = connector;
         const endpoint = endpoints.find(e => e.id === endpointId);
         if (!endpoint) {
-            throw new Error(`Endpoint ${endpointId} not found in adapter ${pipeline.source.adapter_id}`);
+            throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
         }
         const pagination = endpoint.settings?.pagination;
         if (typeof pagination !== "undefined") {
@@ -99,15 +89,24 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
     if (typeof paginationConfig === "undefined") {
         paginationConfig = adapterConfig.pagination || false;
     }
-    if (paginationConfig && typeof paginationConfig.maxItemsPerPage !== 'undefined') {
+    if (!paginationConfig) {
+        if (typeof itemsPerPage !== 'undefined') {
+            log({
+                type: 'info',
+                message: `since the ${connector.endpoint_id} endpoint of the ${connector.adapter_id} adapter does not support pagination, the number of items per page set will be ignored`,
+            });
+            itemsPerPage = undefined;
+        }
+    }
+    else if (typeof paginationConfig.maxItemsPerPage !== 'undefined') {
         if (typeof itemsPerPage === 'undefined') {
             log({
                 type: 'info',
-                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${paginationConfig.maxItemsPerPage}) will be used instead.`,
+                message: `Since the number of items per page was not defined, the maximum items per page defined by the adapter (${paginationConfig.maxItemsPerPage}) will be used instead`,
             });
             itemsPerPage = paginationConfig.maxItemsPerPage;
         }
-        else if (itemsPerPage < paginationConfig.maxItemsPerPage) {
+        else if (itemsPerPage > paginationConfig.maxItemsPerPage) {
             log({
                 type: 'info',
                 message: `The number of items per page (${itemsPerPage}) is greater than the maximum allowed by the adapter (${paginationConfig.maxItemsPerPage}), so it will be reduced to the maximum allowed by the adapter`,
@@ -115,11 +114,25 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
             itemsPerPage = paginationConfig.maxItemsPerPage;
         }
     }
+    const paginationType = (paginationConfig && paginationConfig.type) || undefined;
+    return {
+        paginationType,
+        itemsPerPage,
+    };
+}
+async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
+    const rl = pipeline.rate_limiting || {
+        requests_per_second: Infinity,
+        max_retries_on_rate_limit: 0
+    };
+    const minIntervalMs = rl.requests_per_second === Infinity
+        ? 0
+        : 1000 / rl.requests_per_second;
     const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
     const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
     const downloadStartTime = Date.now();
-    const paginationType = (paginationConfig && paginationConfig.type) || undefined;
-    let pageResult, fetchDataMoment, pageOffset = pipeline.source.pagination?.pageOffsetKey || '0'; // Start as string
+    let { itemsPerPage, paginationType, } = getPaginationFromEndpoint(pipeline.source, sourceAdapter, pipeline.source.pagination?.itemsPerPage || undefined, log);
+    let pageResult, fetchDataMoment, pageOffset = pipeline.source.pagination?.pageOffsetKey || undefined;
     let data = [];
     do {
         if (pageResult) {
@@ -128,7 +141,7 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
                 log({ type: 'info', message: `Next cursor set to ${pageOffset}` });
             }
             else {
-                pageOffset = (typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : pageOffset) + itemsPerPage;
+                pageOffset = (typeof pageOffset === 'string' ? parseInt(pageOffset, 10) || 0 : (pageOffset || 0)) + itemsPerPage;
                 log({ type: 'info', message: `Next offset incremented to ${pageOffset}` });
             }
             // Apply rate limiting if configured
@@ -156,7 +169,7 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
         if (typeof paginationType !== 'undefined') {
             log({
                 type: 'extract',
-                message: `Extracted page${paginationType === 'cursor' && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset}`}`,
+                message: `Extracted page${paginationType === 'cursor' && pageResult.options?.nextOffset !== undefined ? ` with cursor ${pageResult.options.nextOffset}` : ` at offset ${pageOffset || 0}`}`,
                 dataCount: pageResult.data.length
             });
         }
@@ -362,7 +375,10 @@ function Orchestrator(vault, availableAdapters) {
                     throw new Error(`Upload not supported by adapter ${pipeline.target.adapter_id}`);
                 }
                 // Upload data in batches
-                const itemsPerBatch = pipeline.target.pagination?.itemsPerPage || DEFAULT_CONFIG.ITEMS_PER_PAGE;
+                let { paginationType, itemsPerPage: itemsPerBatch } = getPaginationFromEndpoint(pipeline.target, targetAdapter, pipeline.target.pagination?.itemsPerPage || 0, log);
+                if (paginationType !== 'offset' || typeof itemsPerBatch === 'undefined') {
+                    itemsPerBatch = finalData.length;
+                }
                 for (let i = 0; i < finalData.length; i += itemsPerBatch) {
                     const batch = finalData.slice(i, i + itemsPerBatch);
                     // Upload batch with retry logic
