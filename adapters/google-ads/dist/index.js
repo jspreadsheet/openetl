@@ -6,10 +6,10 @@ if (! axios && typeof(require) === 'function') {
 ;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
-    global.hubspot = factory();
+    global.googleAds = factory();
 }(this, (function () {
 
-var hubspot;
+var googleAds;
 /******/ (() => { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
@@ -276,6 +276,9 @@ function googleAds(connector, auth) {
         return new Error(`Download failed: ${errorMessage}`);
     };
     return {
+        getConfig: () => {
+            return GoogleAdsAdapter;
+        },
         download: async function (pageOptions) {
             try {
                 return await download(pageOptions);
@@ -344,10 +347,10 @@ module.exports = axios;
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
 /******/ 	var __webpack_exports__ = __webpack_require__(920);
-/******/ 	hubspot = __webpack_exports__;
+/******/ 	googleAds = __webpack_exports__;
 /******/ 	
 /******/ })()
 ;
 
-    return hubspot;
+    return googleAds;
 })));

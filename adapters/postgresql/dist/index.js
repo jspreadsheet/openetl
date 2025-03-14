@@ -61,6 +61,9 @@ const PostgresqlAdapter = {
         { id: "custom_query", query_type: "custom", description: "Run a custom SQL query", supported_actions: ["download"] },
         { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
     ],
+    pagination: {
+        type: 'offset',
+    }
 };
 exports.PostgresqlAdapter = PostgresqlAdapter;
 function postgresql(connector, auth) {
@@ -142,7 +145,9 @@ function postgresql(connector, auth) {
         return `INSERT INTO "${schema}"."${table}" (${fields.map(f => `"${f}"`).join(', ')}) VALUES ${values.join(', ')}`;
     }
     return {
-        paginationType: 'offset',
+        getConfig: function () {
+            return PostgresqlAdapter;
+        },
         connect: async function () {
             if (!isBasicAuth(auth)) {
                 throw new Error("PostgreSQL adapter requires basic authentication");
@@ -191,6 +196,10 @@ function postgresql(connector, auth) {
             if (endpoint.id === "table_insert") {
                 throw new Error("Table_insert endpoint only supported for upload");
             }
+            if (typeof pageOptions.offset === 'string') {
+                throw new Error('table_query and custom_query endpoints of the PostgreSQL adapter don\'t accept a string as offset');
+            }
+            const offset = typeof pageOptions.offset === 'string' ? parseInt(pageOptions.offset) : pageOptions.offset;
             const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
             log("Executing query:", query);
             try {
