@@ -127,7 +127,7 @@ export interface DatabaseAdapter extends BaseAdapter {
 export type Filter = {
     field: string;
     operator: string;
-    value: string;
+    value: string | number;
 };
 
 export type FilterGroup = {
