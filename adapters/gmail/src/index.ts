@@ -1,10 +1,6 @@
 /**
  * Gmail Adapter for OpenETL
  * https://componade.com/openetl
- *
- * @TODO:
- * - Add support for batch requests to improve performance (e.g., batch message retrieval).
- * - Implement label management endpoints.
  */
 
 import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter, FilterGroup } from 'openetl';
