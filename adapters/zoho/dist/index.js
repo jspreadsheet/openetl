@@ -246,7 +246,10 @@ function zoho(connector, auth) {
             throw new Error('Number of items per page exceeds Zoho maximum');
         }
         config.params.per_page = limit;
-        config.params.page = offset ? Math.floor(offset / limit) + 1 : 1;
+        const page = offset ? Math.floor(Number(offset) / limit) + 1 : 1;
+        if (page) {
+            config.params.page = page;
+        }
         const response = await axios_1.default.get(`${ZohoAdapter.base_url}${endpoint.path}`, config);
         const { data, info } = response.data;
         if (!Array.isArray(data)) {
@@ -305,6 +308,9 @@ function zoho(connector, auth) {
             }
         },
         download: async function (pageOptions) {
+            if (!endpoint.supported_actions.includes('download')) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
+            }
             log('inside download..');
             try {
                 return await download(pageOptions);
@@ -325,6 +331,9 @@ function zoho(connector, auth) {
             }
         },
         upload: async function (data) {
+            if (!endpoint.supported_actions.includes('upload')) {
+                throw new Error(`${endpoint.id} endpoint don't support upload`);
+            }
             log('inside upload..');
             const config = await buildRequestConfig();
             try {

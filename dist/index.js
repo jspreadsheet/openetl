@@ -74,17 +74,15 @@ async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartT
 function getPaginationFromEndpoint(connector, adapter, itemsPerPage, log) {
     const adapterConfig = adapter.getConfig();
     let paginationConfig;
-    if (adapterConfig.type === 'http') {
-        const { endpoints } = adapterConfig;
-        const { endpoint_id: endpointId } = connector;
-        const endpoint = endpoints.find(e => e.id === endpointId);
-        if (!endpoint) {
-            throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
-        }
-        const pagination = endpoint.settings?.pagination;
-        if (typeof pagination !== "undefined") {
-            paginationConfig = pagination;
-        }
+    const { endpoints } = adapterConfig;
+    const { endpoint_id: endpointId } = connector;
+    const endpoint = endpoints.find(e => e.id === endpointId);
+    if (!endpoint) {
+        throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
+    }
+    const pagination = endpoint.settings?.pagination;
+    if (typeof pagination !== "undefined") {
+        paginationConfig = pagination;
     }
     if (typeof paginationConfig === "undefined") {
         paginationConfig = adapterConfig.pagination || false;

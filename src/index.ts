@@ -100,21 +100,19 @@ function getPaginationFromEndpoint (
 
     let paginationConfig: AdapterPagination | false | undefined;
 
-    if (adapterConfig.type === 'http') {
-        const { endpoints } = adapterConfig;
+    const { endpoints } = adapterConfig;
 
-        const { endpoint_id: endpointId } = connector;
+    const { endpoint_id: endpointId } = connector;
 
-        const endpoint = endpoints.find(e => e.id === endpointId)!;
-        if (!endpoint) {
-            throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
-        }
+    const endpoint = endpoints.find(e => e.id === endpointId);
+    if (!endpoint) {
+        throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
+    }
 
-        const pagination = endpoint.settings?.pagination;
+    const pagination = endpoint.settings?.pagination;
 
-        if (typeof pagination !== "undefined") {
-            paginationConfig = pagination;
-        }
+    if (typeof pagination !== "undefined") {
+        paginationConfig = pagination;
     }
 
     if (typeof paginationConfig === "undefined") {
