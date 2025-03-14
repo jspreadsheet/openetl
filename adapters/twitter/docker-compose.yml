@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  oauth-server:
+    build:
+      context: ./oauth-server
+      dockerfile: Dockerfile
+    ports:
+      - "2301:3000"
+    environment:
+      - TWITTER_CLIENT_ID=X0MyU25kUldQS2xscm5qb2VyNVE6MTpjaQ
+      - TWITTER_CLIENT_SECRET=xDz2O_WXZZIwHYuxbeKu7KoCGlBmEQj_DTVyR_2etMjkOrvcvU
+      - REDIRECT_URI=http://localhost:2301/callback
+      - ACCESS_TOKEN_FILE=/app/tokens/tokens.json
+    volumes:
+      - ./oauth-server/tokens:/app/tokens
