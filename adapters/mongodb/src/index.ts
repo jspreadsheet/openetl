@@ -55,6 +55,12 @@ const MongoDBAdapter: DatabaseAdapter = {
 };
 
 function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
+  const log = function (...args: any) {
+    if (connector.debug) {
+        console.log(...arguments);
+    }
+  };
+
   const endpoint = MongoDBAdapter.endpoints.find(e => e.id === connector.endpoint_id)!;
   if (!endpoint) {
     throw new Error(`Endpoint ${connector.endpoint_id} not found in MongoDB adapter`);
@@ -160,12 +166,12 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
       const url = `mongodb://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}?authSource=admin`;
 
       try {
-        console.log("Connecting to MongoDB...");
+        log("Connecting to MongoDB...");
         client = new MongoClient(url);
         await client.connect();
         db = client.db(config.database);
         collection = db.collection(connector.config!.collection);
-        console.log("Connection successful");
+        log("Connection successful");
       } catch (error: any) {
         console.error("Connection test failed:", error.message);
         throw new Error(`Failed to connect to MongoDB: ${error.message}`);
@@ -173,10 +179,10 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
     },
     disconnect: async function() {
       try {
-        console.log("Closing MongoDB connection...");
+        log("Closing MongoDB connection...");
         if (client) {
           await client.close();
-          console.log("Connection closed successfully");
+          log("Connection closed successfully");
         }
       } catch (error: any) {
         console.error("Error closing connection:", error.message);
@@ -196,7 +202,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
       const projection = buildProjection();
       const sort = buildSort();
 
-      console.log("Executing query:", JSON.stringify(query));
+      log("Executing query:", JSON.stringify(query));
 
       try {
         let cursor = collection.find(query);
@@ -207,7 +213,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         if (pageOptions.offset) cursor = cursor.skip(Number(pageOptions.offset));
 
         const results = await cursor.toArray();
-        console.log("Downloaded documents:", results.length);
+        log("Downloaded documents:", results.length);
 
         return {
           data: results
@@ -226,11 +232,11 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error("Not connected to MongoDB");
       }
 
-      console.log("Uploading documents:", data.length);
+      log("Uploading documents:", data.length);
 
       try {
         const result = await collection.insertMany(data);
-        console.log("Inserted documents:", result.insertedCount);
+        log("Inserted documents:", result.insertedCount);
       } catch (error: any) {
         console.error("Upload error:", error.message);
         throw error;
