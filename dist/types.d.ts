@@ -48,6 +48,10 @@ export type BasicAuth = BaseAuth & {
 };
 export type AuthConfig = ApiKeyAuth | OAuth2Auth | BasicAuth;
 export type Vault = Record<string, AuthConfig>;
+export type AdapterPagination = {
+    type: string;
+    maxItemsPerPage?: number;
+};
 export interface BaseAdapter {
     id: string;
     name: string;
@@ -64,6 +68,7 @@ export interface BaseAdapter {
         provider?: string;
         [key: string]: any;
     };
+    pagination?: AdapterPagination;
 }
 export interface HttpAdapter extends BaseAdapter {
     type: "http";
@@ -74,6 +79,9 @@ export interface HttpAdapter extends BaseAdapter {
         method: "GET" | "POST" | "PUT" | "DELETE";
         description?: string;
         supported_actions: Array<"download" | "upload" | "sync">;
+        settings?: {
+            pagination?: AdapterPagination | false;
+        };
     }>;
 }
 export interface DatabaseAdapter extends BaseAdapter {
@@ -141,7 +149,7 @@ export type Sort = {
 };
 export type Pagination = {
     itemsPerPage?: number;
-    pageOffsetKey?: string;
+    pageOffsetKey?: number | string;
 };
 export interface Connector {
     id: string;
@@ -195,13 +203,12 @@ export interface Pipeline<T = object> {
     };
 }
 export interface AdapterInstance {
-    paginationType?: string;
-    maxItemsPerPage?: number;
+    getConfig: () => HttpAdapter | DatabaseAdapter;
     connect?(): Promise<void>;
     disconnect?: () => Promise<void>;
     download(pageOptions: {
         limit?: number;
-        offset?: number;
+        offset?: number | string;
     }): Promise<{
         data: any[];
         options?: {

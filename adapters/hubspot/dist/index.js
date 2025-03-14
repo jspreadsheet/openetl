@@ -64,6 +64,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.HubSpotAdapter = void 0;
 exports.hubspot = hubspot;
 const axios_1 = __importStar(__webpack_require__(467));
+const maxItemsPerPage = 100;
 const HubSpotAdapter = {
     id: "hubspot-adapter",
     name: "HubSpot CRM Adapter",
@@ -85,6 +86,10 @@ const HubSpotAdapter = {
         provider: "hubspot",
         description: "Adapter for HubSpot CRM and Marketing APIs",
         version: "v3", // Most current stable API version as of Feb 2025
+    },
+    pagination: {
+        type: 'cursor',
+        maxItemsPerPage,
     },
     endpoints: [
         // CRM Objects
@@ -343,7 +348,6 @@ function hubspot(connector, auth) {
         };
         return operatorMap[operator] || operator;
     }
-    const maxItemsPerPage = 100;
     const download = async function (pageOptions) {
         const config = await buildRequestConfig();
         const { limit, offset } = pageOptions;
@@ -354,7 +358,7 @@ function hubspot(connector, auth) {
             throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
         }
         config.params.limit = limit;
-        const after = typeof offset !== 'undefined' && offset > 0 ? offset.toString() : undefined;
+        const after = typeof offset === 'number' ? offset.toString() : offset;
         if (after) {
             config.params.after = after;
         }
@@ -401,8 +405,9 @@ function hubspot(connector, auth) {
         return new Error(`Download failed: ${errorMessage}`);
     };
     return {
-        paginationType: 'cursor',
-        maxItemsPerPage,
+        getConfig: () => {
+            return HubSpotAdapter;
+        },
         connect: async function () {
             const config = await buildRequestConfig();
             try {
@@ -420,6 +425,9 @@ function hubspot(connector, auth) {
             }
         },
         download: async function (pageOptions) {
+            if (!endpoint.supported_actions.includes('download')) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
+            }
             try {
                 return await download(pageOptions);
             }
@@ -455,6 +463,9 @@ function hubspot(connector, auth) {
             }
         },
         upload: async function (data) {
+            if (!endpoint.supported_actions.includes('upload')) {
+                throw new Error(`${endpoint.id} endpoint don't support upload`);
+            }
             const config = await buildRequestConfig();
             try {
                 await axios_1.default.post(`${HubSpotAdapter.base_url}${endpoint.path}`, {

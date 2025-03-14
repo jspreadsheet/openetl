@@ -17,17 +17,17 @@ class MyPlugin {
 
             // Custom UMD header with axios passed to factory
             const header = `
-if (! axios && typeof(require) === 'function') {
-    var axios = require('axios');
+if (! mysql2 && typeof(require) === 'function') {
+    var mysql2 = require('mysql2');
 }
 
 ;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
-    global.googleAds = factory();
+    global.adapter = factory();
 }(this, (function () {`;
 
-            const footer = `    return googleAds;
+            const footer = `    return adapter;
 })));`;
 
             // Combine header, original content, and footer
@@ -43,7 +43,7 @@ if (! axios && typeof(require) === 'function') {
 }
 
 let dependencies = {
-    axios: "axios",
+    mysql2: "mysql2"
 }
 
 const webpack = {
@@ -56,7 +56,7 @@ const webpack = {
     output: {
         filename: 'index.js',
         path: path.resolve(__dirname, 'dist'),
-        library: 'googleAds',
+        library: 'adapter',
         globalObject: 'default'
     },
     module: {
