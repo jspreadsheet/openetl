@@ -1,0 +1,12 @@
+{
+  "name": "oauth-server",
+  "version": "1.0.0",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "fs": "0.0.1-security"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
