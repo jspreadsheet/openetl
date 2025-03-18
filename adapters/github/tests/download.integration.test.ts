@@ -1,6 +1,7 @@
-import { Orchestrator } from '../../../src/index'; // Adjust path
+import { Orchestrator } from '../../../src/index';
 import { github } from './../src/index';
 import axios from 'axios';
+import token from './token';
 
 jest.mock('axios', () => {
   const actualAxios = jest.requireActual('axios') as typeof axios;
@@ -16,12 +17,11 @@ describe('GitHubAdapter Download Integration Tests', () => {
   let baseConnector: any;
 
   beforeEach(() => {
-    // Reset the axios.get mock before each test
     (axios.get as jest.MockedFunction<typeof axios.get>).mockClear();
   });
 
   beforeAll(async () => {
-    const pat = process.env.GITHUB_PAT || 'ghp_Kc3y...';
+    const pat = process.env.GITHUB_PAT || token;
 
     vault = {
       'github-auth': {
@@ -55,7 +55,7 @@ describe('GitHubAdapter Download Integration Tests', () => {
       id: 'github-commits-download',
       source: {
         ...baseConnector,
-        limit: 20, // Fetch up to 20 commits (2 pages)
+        limit: 20,
       },
     };
 
@@ -80,7 +80,7 @@ describe('GitHubAdapter Download Integration Tests', () => {
       id: 'github-commits-branch',
       source: {
         ...baseConnector,
-        filters: [{ field: 'sha', operator: '=', value: 'main' }], // Filter by branch
+        filters: [{ field: 'sha', operator: '=', value: 'main' }],
         limit: 10,
       },
     };
@@ -127,14 +127,14 @@ describe('GitHubAdapter Download Integration Tests', () => {
       source: {
         ...baseConnector,
         pagination: { itemsPerPage: 5 },
-        limit: 5, // Matches itemsPerPage to ensure one page
+        limit: 5,
       },
     };
 
     const result = await orchestrator.runPipeline(pipeline);
     expect(result.data).toBeInstanceOf(Array);
-    expect(result.data.length).toBeLessThanOrEqual(5); // Up to 5 commits
-    expect(result.data.length).toBeGreaterThan(0); // Expect some commits
+    expect(result.data.length).toBeLessThanOrEqual(5);
+    expect(result.data.length).toBeGreaterThan(0);
     result.data.forEach((commit: any) => {
       expect(commit).toHaveProperty('sha');
       expect(commit).toHaveProperty('commit');
@@ -150,15 +150,15 @@ describe('GitHubAdapter Download Integration Tests', () => {
       source: {
         ...baseConnector,
         pagination: { itemsPerPage: 5 },
-        limit: 15, // Requires 3 pages (5 items per page)
+        limit: 15,
       },
     };
 
     const result = await orchestrator.runPipeline(pipeline);
 
     expect(result.data).toBeInstanceOf(Array);
-    expect(result.data.length).toBeGreaterThan(5); // More than one page
-    expect(result.data.length).toBeLessThanOrEqual(15); // Up to 15 commits
+    expect(result.data.length).toBeGreaterThan(5);
+    expect(result.data.length).toBeLessThanOrEqual(15);
     result.data.forEach((commit: any) => {
       expect(commit).toHaveProperty('sha');
       expect(commit).toHaveProperty('commit');
@@ -175,7 +175,7 @@ describe('GitHubAdapter Download Integration Tests', () => {
       source: {
         ...baseConnector,
         pagination: { itemsPerPage: 10 },
-        limit: 1000, // Large limit to fetch all commits
+        limit: 1000,
       },
     };
 
@@ -183,8 +183,7 @@ describe('GitHubAdapter Download Integration Tests', () => {
     expect(result.data).toBeInstanceOf(Array);
     expect(result.data.length).toBeGreaterThan(0);
     expect(result.data.length).toBeLessThanOrEqual(1000);
-    // jspreadsheet/openetl has fewer than 1000 commits, so should stop early
-    expect(result.data.length).toBeLessThan(100); // Rough estimate based on repo size
+    expect(result.data.length).toBeLessThan(100);
     result.data.forEach((commit: any) => {
       expect(commit).toHaveProperty('sha');
       expect(commit).toHaveProperty('commit');
@@ -193,7 +192,6 @@ describe('GitHubAdapter Download Integration Tests', () => {
   }, 30000);
 
   it('respects initial page offset', async () => {
-    // First, fetch the first page to get a baseline
     const firstPagePipeline = {
       id: 'github-commits-first-page',
       source: {
@@ -207,12 +205,11 @@ describe('GitHubAdapter Download Integration Tests', () => {
     expect(firstResult.data.length).toBeGreaterThan(0);
     const firstPageSha = firstResult.data[0].sha;
 
-    // Now fetch starting from page 2
     const pipeline = {
       id: 'github-commits-offset',
       source: {
         ...baseConnector,
-        pagination: { itemsPerPage: 5, pageOffsetKey: 2 }, // Start at page 2
+        pagination: { itemsPerPage: 5, pageOffsetKey: 5 },
         limit: 5,
       },
     };
@@ -221,7 +218,7 @@ describe('GitHubAdapter Download Integration Tests', () => {
     expect(result.data).toBeInstanceOf(Array);
     expect(result.data.length).toBeLessThanOrEqual(5);
     if (result.data.length > 0) {
-      expect(result.data[0].sha).not.toBe(firstPageSha); // Should be different from page 1
+      expect(result.data[0].sha).not.toBe(firstPageSha);
       result.data.forEach((commit: any) => {
         expect(commit).toHaveProperty('sha');
         expect(commit).toHaveProperty('commit');
@@ -237,13 +234,13 @@ describe('GitHubAdapter Download Integration Tests', () => {
       source: {
         ...baseConnector,
         pagination: { itemsPerPage: 2 },
-        limit: 10, // Requires 5 pages
+        limit: 10,
       },
     };
 
     const result = await orchestrator.runPipeline(pipeline);
     expect(result.data).toBeInstanceOf(Array);
-    expect(result.data.length).toBeGreaterThan(2); // More than one page
+    expect(result.data.length).toBeGreaterThan(2);
     expect(result.data.length).toBeLessThanOrEqual(10);
     result.data.forEach((commit: any) => {
       expect(commit).toHaveProperty('sha');

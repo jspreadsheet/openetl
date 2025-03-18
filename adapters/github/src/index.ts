@@ -9,10 +9,10 @@ const GitHubAdapter: HttpAdapter = {
   base_url: "https://api.github.com",
   config: [
     { name: 'headers', required: false, default: {} },
-    { name: 'owner', required: false }, // Optional for user endpoints
-    { name: 'repo', required: false },  // Optional for user endpoints
+    { name: 'owner', required: false },
+    { name: 'repo', required: false },
   ],
-  credential_type: "api_key", // Supports oauth2 later
+  credential_type: "api_key",
   metadata: {
     provider: "github",
     description: "HTTP Adapter for GitHub API operations",
@@ -91,26 +91,24 @@ function github(connector: Connector, auth: AuthConfig): AdapterInstance {
 
   function buildQueryParams(pageOptions: { limit?: number; offset?: number | string }): Record<string, string> {
     const params: Record<string, string> = {};
-
     if (connector.filters?.length) {
       connector.filters.forEach(filter => {
         if ('field' in filter) {
-          params[filter.field] = String(filter.value); // e.g., state=open, sha=branch
+          params[filter.field] = String(filter.value);
         }
       });
     }
-
     if (pageOptions.limit) {
       const limit = Math.min(pageOptions.limit, 100);
       params.per_page = String(limit);
     }
-
     if (pageOptions.offset) {
-      params.page = String(pageOptions.offset);
+      const offset = typeof pageOptions.offset === 'string' ? parseInt(pageOptions.offset, 10) : pageOptions.offset;
+      const itemsPerPage = pageOptions.limit || 100;
+      params.page = String(Math.floor(offset / itemsPerPage) + 1);
     } else {
       params.page = '1';
     }
-
     return params;
   }
 
@@ -122,7 +120,7 @@ function github(connector: Connector, auth: AuthConfig): AdapterInstance {
       return url.replace('{owner}', connector.config.owner)
                 .replace('{repo}', connector.config.repo);
     }
-    return url; // No replacement needed for user endpoints
+    return url;
   }
 
   return {
