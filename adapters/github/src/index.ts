@@ -150,8 +150,8 @@ function github(connector: Connector, auth: AuthConfig): AdapterInstance {
 
       try {
         const response = await axios.get<any[]>(url, { headers, params });
-        const data = response.data;
-        const linkHeader = response.headers.link;
+        const data = response?.data;
+        const linkHeader = response?.headers?.link;
         let nextOffset: number | undefined;
         if (linkHeader) {
           const nextMatch = linkHeader.match(/<[^>]+page=(\d+)[^>]*>; rel="next"/);
