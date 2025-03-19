@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  github-oauth-server:
+    build:
+      context: ./oauth-server
+      dockerfile: Dockerfile
+    ports:
+      - "2215:3000"
+    environment:
+      - GITHUB_CLIENT_ID=Ov23liPMXpSe0tAjRzTS
+      - GITHUB_CLIENT_SECRET=f12173d3b63ea596d3e0d669c89355c8fe7f102e
+      - REDIRECT_URI=http://localhost:2215/callback
+      - ACCESS_TOKEN_FILE=/app/tokens/tokens.json
+    volumes:
+      - ./oauth-server/tokens:/app/tokens
