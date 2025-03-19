@@ -30,6 +30,14 @@ const GitHubAdapter: HttpAdapter = {
       },
     },
     {
+      id: "create_repository",
+      path: "/user/repos",
+      method: "POST",
+      description: "Create a repository",
+      supported_actions: ["upload"],
+      settings: { pagination: false },
+    },
+    {
       id: "create_issue",
       path: "/repos/{owner}/{repo}/issues",
       method: "POST",
