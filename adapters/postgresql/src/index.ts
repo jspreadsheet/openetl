@@ -10,7 +10,7 @@ import { QueryResult } from 'pg'; // Use named imports
 const { Pool } = pg;
 
 const PostgresqlAdapter: DatabaseAdapter = {
-  id: "postgres",
+  id: "postgresql",
   name: "PostgreSQL Database Adapter",
   type: "database",
   action: ["download", "upload", "sync"],
