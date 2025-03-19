@@ -76,6 +76,14 @@ const GitHubAdapter: HttpAdapter = {
       settings: { pagination: false },
     },
     {
+      id: "user_info",
+      path: "/users/{username}",
+      method: "GET",
+      description: "Fetch any user public data",
+      supported_actions: ["download"],
+      settings: { pagination: false },
+    },
+    {
       id: "user_emails",
       path: "/user/emails",
       method: "GET",
@@ -133,8 +141,15 @@ function github(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error("Connector config must include repo for repo-specific endpoints");
       }
     }
+
+    if ( endpoint?.path.includes('{username}')) {
+      if ( !connector.config?.username ) {
+        throw new Error("Connector config must include username for users endpoints");
+      }
+    }
     return url.replace('{owner}', connector.config?.owner)
-                .replace('{repo}', connector.config?.repo);
+                .replace('{repo}', connector.config?.repo)
+                .replace('{username}', connector.config?.username);
   }
 
   return {
@@ -164,7 +179,10 @@ function github(connector: Connector, auth: AuthConfig): AdapterInstance {
 
       try {
         const response = await axios.get<any[]>(url, { headers, params });
-        const data = response?.data;
+        let data = response?.data;
+        if (!Array.isArray(data)) {
+          data = data ? [data] : [];
+        }
         const linkHeader = response?.headers?.link;
         let nextOffset: number | undefined;
         if (linkHeader) {
