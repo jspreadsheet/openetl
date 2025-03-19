@@ -56,7 +56,7 @@ describe('GitHubAdapter Repo Issues Integration Tests', () => {
       source: {
         ...baseConnector,
         pagination: { itemsPerPage: 5 },
-        limit: 5, // One page
+        limit: 5,
       },
     };
 
@@ -113,14 +113,14 @@ describe('GitHubAdapter Repo Issues Integration Tests', () => {
         params: { per_page: '5', page: '2' },
       })
     );
-    /*
+    
     expect(axiosGetMock).toHaveBeenNthCalledWith(
       3,
       'https://api.github.com/repos/axios/axios/issues',
       expect.objectContaining({
         params: { per_page: '5', page: '3' },
       })
-    );*/
+    );
   }, 30000);
 
   it('downloads issues with state filter', async () => {

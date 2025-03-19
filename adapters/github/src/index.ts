@@ -48,6 +48,16 @@ const GitHubAdapter: HttpAdapter = {
       },
     },
     {
+      id: 'user_public_repos',
+      path: '/users/{owner}/repos',
+      method: 'GET',
+      description: 'Get user repositories',
+      supported_actions: ['download'],
+      settings: {
+        pagination: { type: "offset", maxItemsPerPage: 100 },
+      }
+    },
+    {
       id: "repo_commits",
       path: "/repos/{owner}/{repo}/commits",
       method: "GET",
@@ -113,14 +123,18 @@ function github(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   function replacePathParams(url: string): string {
-    if (endpoint?.path.includes('{owner}') || endpoint?.path.includes('{repo}')) {
-      if (!connector.config?.owner || !connector.config?.repo) {
-        throw new Error("Connector config must include owner and repo for repo-specific endpoints");
+    if ( endpoint?.path.includes('{owner}') ) {
+      if ( !connector.config?.owner ) {
+        throw new Error("Connector config must include owner for repo-specific endpoints");
       }
-      return url.replace('{owner}', connector.config.owner)
-                .replace('{repo}', connector.config.repo);
     }
-    return url;
+    if ( endpoint?.path.includes('{repo}') ) {
+      if ( !connector.config?.repo ) {
+        throw new Error("Connector config must include repo for repo-specific endpoints");
+      }
+    }
+    return url.replace('{owner}', connector.config?.owner)
+                .replace('{repo}', connector.config?.repo);
   }
 
   return {

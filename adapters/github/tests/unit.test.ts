@@ -1,8 +1,7 @@
-import { Orchestrator } from "../../../src/index"; // Adjust path
-import { github } from "./../src/index"; // Adjust path
+import { Orchestrator } from "../../../src/index";
+import { github } from "./../src/index";
 import axios from "axios";
 
-// Mock axios completely for unit tests
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
@@ -11,7 +10,6 @@ describe("GitHubAdapter Unit Tests with Orchestrator", () => {
 	let vault: any;
 	let baseConnector: any;
 
-	// Mock response data
 	const mockIssue = {
 		id: 1,
 		title: "Test Issue",
@@ -297,7 +295,7 @@ describe("GitHubAdapter Unit Tests with Orchestrator", () => {
 			};
 
 			await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow(
-				"Connector config must include owner and repo for repo-specific endpoints"
+				"Connector config must include owner for repo-specific endpoints"
 			);
 			expect(mockedAxios.get).not.toHaveBeenCalled();
 		});
@@ -335,7 +333,7 @@ describe("GitHubAdapter Unit Tests with Orchestrator", () => {
 				"github-auth": {
 					id: "github-auth",
 					type: "api_key",
-					credentials: {}, // Missing api_key
+					credentials: {},
 				},
 			};
 			const badOrchestrator = Orchestrator(badVault, { github });
@@ -379,13 +377,13 @@ describe("GitHubAdapter Unit Tests with Orchestrator", () => {
 		});
 
 		it("handles large offset beyond data", async () => {
-			mockedAxios.get.mockResolvedValue({ data: [], headers: {} }); // No data at high offset
+			mockedAxios.get.mockResolvedValue({ data: [], headers: {} });
 			const pipeline = {
 				id: "github-issues-large-offset",
 				source: {
 					...baseConnector,
 					endpoint_id: "repo_issues",
-					pagination: { itemsPerPage: 5, pageOffsetKey: 1000 }, // Page 201
+					pagination: { itemsPerPage: 5, pageOffsetKey: 1000 },
 					limit: 5,
 				},
 			};
@@ -431,7 +429,7 @@ describe("GitHubAdapter Unit Tests with Orchestrator", () => {
 			const pipeline = {
 				id: "github-create-issue-invalid",
 				target: { ...baseConnector, endpoint_id: "create_issue" },
-				data: [{ body: "No title" }], // Missing title
+				data: [{ body: "No title" }],
 			};
 
 			await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow(
