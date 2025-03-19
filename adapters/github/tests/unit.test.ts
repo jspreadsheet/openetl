@@ -250,7 +250,7 @@ describe("GitHubAdapter Unit Tests with Orchestrator", () => {
 				source: {
 					...baseConnector,
 					endpoint_id: "repo_issues",
-					pagination: { itemsPerPage: 5, pageOffsetKey: 5 }, // Offset for page 2
+					pagination: { itemsPerPage: 5, pageOffsetKey: 5 },
 					limit: 5,
 				},
 			};
