@@ -1,0 +1,17 @@
+{
+  "name": "@openetl/s3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx webpack --config webpack.config.js",
+    "test": "jest"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0"
+  },
+  "devDependencies": {
+    "openetl": "file:../.."
+  }
+}
