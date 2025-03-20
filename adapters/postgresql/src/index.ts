@@ -9,24 +9,21 @@ import { QueryResult } from 'pg'; // Use named imports
 
 const { Pool } = pg;
 
+const schemaDefaultValue = 'public';
+
 const PostgresqlAdapter: DatabaseAdapter = {
   id: "postgresql",
   name: "PostgreSQL Database Adapter",
+  category: 'Databases & Data Warehouses',
+  image: 'https://static.cdnlogo.com/logos/p/93/postgresql.svg',
   type: "database",
   action: ["download", "upload", "sync"],
   config: [
     {
+      id: 'schema',
       name: 'schema',
       required: false,
-      default: 'public',
-    },
-    {
-      name: 'table',
-      required: true,
-    },
-    {
-      name: 'custom_query',
-      required: false,
+      default: schemaDefaultValue,
     },
   ],
   credential_type: "basic",
@@ -36,7 +33,21 @@ const PostgresqlAdapter: DatabaseAdapter = {
     version: "1.0",
   },
   endpoints: [
-    { id: "table_query", query_type: "table", description: "Query a specific table", supported_actions: ["download", "sync"] },
+    {
+      id: "table_query",
+      query_type: "table",
+      description: "Query a specific table",
+      supported_actions: ["download", "sync"],
+      settings: {
+        config: [
+          {
+            id: 'table',
+            name: 'table',
+            required: true,
+          },
+        ]
+      },
+    },
     {
       id: "custom_query",
       query_type: "custom",
@@ -44,9 +55,30 @@ const PostgresqlAdapter: DatabaseAdapter = {
       supported_actions: ["download"],
       settings: {
         pagination: false,
+        config: [
+          {
+            id: 'custom_query',
+            name: 'custom_query',
+            required: true,
+          },
+        ]
       }
     },
-    { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
+    {
+      id: "table_insert",
+      query_type: "table",
+      description: "Insert into a specific table",
+      supported_actions: ["upload"],
+      settings: {
+        config: [
+          {
+            id: 'table',
+            name: 'table',
+            required: true,
+          },
+        ]
+      },
+    },
   ],
   pagination: {
     type: 'offset',
@@ -76,12 +108,16 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
   let pool: pg.Pool;
 
   function buildSelectQuery(customLimit?: number, customOffset?: number): string {
-    if (endpoint.id === "custom_query" && connector.config?.custom_query) {
+    if (endpoint.id === "custom_query") {
+      if (!connector.config?.custom_query) {
+        throw new Error(`custom_query property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`)
+      }
+
       return connector.config.custom_query;
     }
 
-    if (!connector.config?.schema || !connector.config?.table) {
-      throw new Error("Schema and table required for table-based endpoints");
+    if (!connector.config?.table) {
+      throw new Error(`table property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
     }
 
     const parts = [];
@@ -90,7 +126,7 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
     parts.push(`SELECT ${connector.fields.length > 0 ? connector.fields.join(', ') : '*'}`);
 
     // FROM clause
-    parts.push(`FROM "${connector.config.schema}"."${connector.config.table}"`);
+    parts.push(`FROM "${connector.config?.schema || schemaDefaultValue}"."${connector.config.table}"`);
 
     // WHERE clause
     if (connector.filters && connector.filters.length > 0) {
@@ -126,10 +162,11 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   function buildInsertQuery(data: any[]): string {
-    if (!connector.config?.schema || !connector.config?.table) {
-      throw new Error("Schema and table required for table_insert endpoint");
+    if (!connector.config?.table) {
+      throw new Error(`table property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`)
     }
-    const schema = connector.config.schema;
+
+    const schema = connector.config.schema || schemaDefaultValue;
     const table = connector.config.table;
     const fields = connector.fields.length > 0 ? connector.fields : Object.keys(data[0]);
     const values = data.map(row => {
@@ -210,12 +247,14 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error('table_query and custom_query endpoints of the PostgreSQL adapter don\'t accept a string as offset');
       }
 
-      const offset = typeof pageOptions.offset === 'string' ? parseInt(pageOptions.offset) : pageOptions.offset;
-
       const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
       log("Executing query:", query);
 
       try {
+        if (endpoint.id === "custom_query") {
+          await pool.query(`SET SCHEMA '${connector.config?.schema || schemaDefaultValue}'`);
+        }
+
         const result: QueryResult<any> = await pool.query(query);
         log("Downloaded rows:", result.rows.length);
         return {

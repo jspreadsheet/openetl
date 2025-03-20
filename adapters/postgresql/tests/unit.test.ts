@@ -135,6 +135,7 @@ describe('PostgreSQL Adapter', () => {
     customAdapter.connect!();
 
     const mockRows = [{ id: 6, name: 'Charlie' }];
+    mockPool.query.mockResolvedValueOnce();
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
     const result = await customAdapter.download({ limit: 10, offset: 0 });
@@ -194,12 +195,12 @@ describe('PostgreSQL Adapter', () => {
     );
   });
 
-  it('throws error when schema or table is missing', async () => {
+  it('throws error when table is missing', async () => {
     const invalidConnector = { ...connector, config: {} };
     const invalidAdapter = postgresql(invalidConnector, auth);
 
     await expect(invalidAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
-      'Schema and table required for table-based endpoints'
+      "table property is required on the PostgreSQL adapter's table_query endpoint"
     );
   });
 

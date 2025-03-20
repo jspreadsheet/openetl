@@ -77,18 +77,28 @@ export type AdapterPagination = {
     maxItemsPerPage?: number;
 };
 
+export interface ConfigItem {
+    id: string;
+    name: string;
+    required: boolean;
+    type?: string;
+    default?: any;
+};
+
+export interface EndpointSettings {
+    pagination?: AdapterPagination | false;
+    config?: ConfigItem[],
+}
+
 // Adapter Types
 export interface BaseAdapter {
     id: string;
     name: string;
-    type: "http" | "database" | "file";
+    category?: string;
+    image?: string;
     action: Array<"download" | "upload" | "sync">;
     credential_type: "api_key" | "oauth2" | "basic";
-    config: {
-        name: string,
-        required: boolean,
-        default?: any,
-    }[],
+    config: ConfigItem[];
     metadata?: {
         description?: string;
         provider?: string;
@@ -97,32 +107,31 @@ export interface BaseAdapter {
     pagination?: AdapterPagination;
 }
 
+export interface Endpoint {
+    id: string;
+    description?: string;
+    supported_actions: Array<"download" | "upload" | "sync">;
+    settings?: EndpointSettings;
+}
+
+export interface HttpEndpoint extends Endpoint {
+    path: string;
+    method: "GET" | "POST" | "PUT" | "DELETE";
+}
+
 export interface HttpAdapter extends BaseAdapter {
     type: "http";
     base_url: string;
-    endpoints: Array<{
-        id: string;
-        path: string;
-        method: "GET" | "POST" | "PUT" | "DELETE";
-        description?: string;
-        supported_actions: Array<"download" | "upload" | "sync">;
-        settings?: {
-            pagination?: AdapterPagination | false;
-        }
-    }>;
+    endpoints: HttpEndpoint[];
+}
+
+export interface DatabaseEndpoint extends Endpoint {
+    query_type: "table" | "custom";
 }
 
 export interface DatabaseAdapter extends BaseAdapter {
     type: "database";
-    endpoints: Array<{
-        id: string;
-        query_type: "table" | "custom";
-        description?: string;
-        supported_actions: Array<"download" | "upload" | "sync">;  // Added "upload"
-        settings?: {
-            pagination?: AdapterPagination | false;
-        };
-    }>;
+    endpoints: DatabaseEndpoint[];
 }
 
 // Connector Types
