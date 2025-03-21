@@ -1,0 +1,17 @@
+{
+  "name": "@openetl/chartmogul",
+  "version": "1.0.0",
+  "description": "OpenETL ChartMogul Adapter",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx webpack --config webpack.config.js",
+    "test": "jest"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "openetl": "file:../.."
+  },
+  "dependencies": {
+    "axios": "^1.8.3"
+  }
+}
