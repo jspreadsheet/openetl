@@ -2,293 +2,369 @@
  * Stripe Adapter for OpenETL
  * https://componade.com/openetl
  *
- * @TODO:
- * Performance Optimization
- * Issue: The upload function processes items sequentially with individual POST requests.
- * Fix: Implement batch processing where Stripe supports it (e.g., for idempotent operations).
  */
 
-import axios from 'axios';
-import { HttpAdapter, Connector, AuthConfig, AdapterInstance, FilterGroup, Filter } from './types';
+import { HttpAdapter, Connector, AuthConfig, AdapterInstance } from 'openetl';
+import axios, { isAxiosError } from 'axios';
+
+const maxItemsPerPage = 100;
 
 const StripeAdapter: HttpAdapter = {
-  id: "stripe-adapter",
-  name: "Stripe Payments Adapter",
-  type: "http",
-  action: ["download", "upload", "sync"],
-  credential_type: "api_key",
-  base_url: "https://api.stripe.com/v1",
-  metadata: {
-    provider: "stripe",
-    description: "Adapter for Stripe Payments API",
-    version: "v1", // Stripe API version as of Feb 2025
-  },
-  endpoints: [
-    // Core Payment Entities
-    {
-      id: "customers",
-      path: "/customers",
-      method: "GET",
-      description: "Retrieve all customers from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-customer",
-      path: "/customers",
-      method: "POST",
-      description: "Create a new customer in Stripe",
-      supported_actions: ["upload"],
-    },
-    {
-      id: "charges",
-      path: "/charges",
-      method: "GET",
-      description: "Retrieve all charges from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-charge",
-      path: "/charges",
-      method: "POST",
-      description: "Create a new charge in Stripe",
-      supported_actions: ["upload"],
-    },
-    {
-      id: "invoices",
-      path: "/invoices",
-      method: "GET",
-      description: "Retrieve all invoices from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-invoice",
-      path: "/invoices",
-      method: "POST",
-      description: "Create a new invoice in Stripe",
-      supported_actions: ["upload"],
-    },
-    {
-      id: "subscriptions",
-      path: "/subscriptions",
-      method: "GET",
-      description: "Retrieve all subscriptions from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-subscription",
-      path: "/subscriptions",
-      method: "POST",
-      description: "Create a new subscription in Stripe",
-      supported_actions: ["upload"],
-    },
-    // Additional Entities
-    {
-      id: "products",
-      path: "/products",
-      method: "GET",
-      description: "Retrieve all products from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-product",
-      path: "/products",
-      method: "POST",
-      description: "Create a new product in Stripe",
-      supported_actions: ["upload"],
-    },
-    {
-      id: "prices",
-      path: "/prices",
-      method: "GET",
-      description: "Retrieve all prices from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-price",
-      path: "/prices",
-      method: "POST",
-      description: "Create a new price in Stripe",
-      supported_actions: ["upload"],
-    },
-    {
-      id: "refunds",
-      path: "/refunds",
-      method: "GET",
-      description: "Retrieve all refunds from Stripe",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "create-refund",
-      path: "/refunds",
-      method: "POST",
-      description: "Create a new refund in Stripe",
-      supported_actions: ["upload"],
-    },
-  ],
+	id: "stripe-adapter",
+	name: "Stripe Payments Adapter",
+	type: "http",
+	action: ["download", "upload", "sync"],
+	credential_type: "api_key",
+	base_url: "https://api.stripe.com/v1",
+	config: [
+		{
+			name: 'headers',
+			required: false,
+		},
+		{
+			name: 'query_params',
+			required: false,
+		},
+	],
+	metadata: {
+		provider: "stripe",
+		description: "Adapter for Stripe Payments API",
+		version: "v1",
+	},
+	pagination: {
+		type: 'cursor',
+		maxItemsPerPage,
+	},
+	endpoints: [
+		{
+			id: "charges",
+			path: "/charges",
+			method: "GET",
+			description: "Retrieve all charges from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-charge",
+			path: "/charges",
+			method: "POST",
+			description: "Create a new charge in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "customers",
+			path: "/customers",
+			method: "GET",
+			description: "Retrieve all customers from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-customer",
+			path: "/customers",
+			method: "POST",
+			description: "Create a new customer in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "invoices",
+			path: "/invoices",
+			method: "GET",
+			description: "Retrieve all invoices from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-invoice",
+			path: "/invoices",
+			method: "POST",
+			description: "Create a new invoice in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "refunds",
+			path: "/refunds",
+			method: "GET",
+			description: "Retrieve all refunds from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-refund",
+			path: "/refunds",
+			method: "POST",
+			description: "Create a new refund in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "payment_intents",
+			path: "/payment_intents",
+			method: "GET",
+			description: "Retrieve all payment intents from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-payment-intent",
+			path: "/payment_intents",
+			method: "POST",
+			description: "Create a new payment intent in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "products",
+			path: "/products",
+			method: "GET",
+			description: "Retrieve all products from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-product",
+			path: "/products",
+			method: "POST",
+			description: "Create a new product in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "subscriptions",
+			path: "/subscriptions",
+			method: "GET",
+			description: "Retrieve all subscriptions from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-subscription",
+			path: "/subscriptions",
+			method: "POST",
+			description: "Create a new subscription in Stripe",
+			supported_actions: ["upload"],
+		},
+		{
+			id: "prices",
+			path: "/prices",
+			method: "GET",
+			description: "Retrieve all prices from Stripe",
+			supported_actions: ["download", "sync"],
+		},
+		{
+			id: "create-price",
+			path: "/prices",
+			method: "POST",
+			description: "Create a new price in Stripe",
+			supported_actions: ["upload"],
+		},
+	],
 };
 
 async function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
-  const endpoint = StripeAdapter.endpoints.find(e => e.id === connector.endpoint_id);
-  if (!endpoint) {
-    throw new Error(`Endpoint ${connector.endpoint_id} not found in Stripe adapter`);
-  }
+	const log = function (...args: any) {
+		if (connector.debug) {
+			console.log(...arguments);
+		}
+	};
 
-  let totalFetched = 0;
-
-  function isApiKeyAuth(auth: AuthConfig): auth is AuthConfig & { credentials: { api_key: string } } {
-    return auth.type === 'api_key';
-  }
-
-  async function buildRequestConfig(): Promise<any> {
-    if (!isApiKeyAuth(auth)) {
-      throw new Error("Stripe adapter requires API key authentication");
+	const endpoint = StripeAdapter.endpoints.find(e => e.id === connector.endpoint_id);
+    if (!endpoint) {
+        throw new Error(`Endpoint ${connector.endpoint_id} not found in Stripe adapter`);
     }
-    if (!auth.credentials.api_key) {
-      throw new Error("API key is missing in credentials");
-    }
-    return {
-      headers: {
-        'Authorization': `Bearer ${auth.credentials.api_key}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-        ...connector.config?.headers,
-      },
-      params: {
-        ...buildQueryParams(),
-        ...connector.config?.query_params,
-      },
-    };
-  }
 
-  function buildQueryParams(): Record<string, any> {
-    const params: Record<string, any> = {};
-    if (connector.fields.length > 0) params.expand = connector.fields.map(f => `data.${f}`);
-    if (connector.filters && connector.filters.length > 0) {
-      connector.filters.forEach(filter => {
-        if ('op' in filter) {
-          throw new Error('Filter groups are not natively supported by Stripe; use individual filters');
+	async function buildRequestConfig(pageOptions?: { limit?: number; offset?: string | number }): Promise<any> {
+        if (auth.type !== 'api_key' || !auth.credentials.api_key) {
+            throw new Error("Stripe adapter requires an API key for authentication");
         }
-        const f = filter as Filter;
-        params[f.field] = f.value; // Stripe uses direct field-value pairs for filtering
-      });
-    }
-    if (connector.sort && connector.sort.length > 0) {
-      // Stripe doesn't support sorting natively in API calls; handle post-fetch if needed
-      console.warn("Sorting not supported natively by Stripe API; apply sorting post-fetch.");
-    }
-    return params;
-  }
-
-  return {
-    connect: async function(): Promise<void> {
-      const config = await buildRequestConfig();
-      try {
-        console.log("Testing connection to Stripe...");
-        await axios.get(`${StripeAdapter.base_url}/customers`, {
-          ...config,
-          params: { limit: 1, ...config.params },
-        });
-        console.log("Connection successful");
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error("Connection test failed:", errorMessage);
-        throw new Error(`Failed to connect to Stripe: ${errorMessage}`);
-      }
-    },
-
-    download: async function(pageOptions: { limit: number; offset: number }): Promise<{ data: any[]; options?: { [key: string]: any } }> {
-      const config = await buildRequestConfig();
-      const pageLimit = Math.min(pageOptions.limit, 100); // Stripe max limit is 100
-      const totalLimit = connector.limit || Number.MAX_SAFE_INTEGER;
-      const remainingLimit = totalLimit - totalFetched;
-      const effectiveLimit = Math.min(pageLimit, remainingLimit);
-      let startingAfter: string | undefined = pageOptions.offset > 0 ? pageOptions.offset.toString() : undefined;
-
-      if (effectiveLimit <= 0) {
-        console.log("Effective limit reached, returning empty result");
-        return { data: [], options: { nextOffset: undefined } };
-      }
-
-      config.params.limit = effectiveLimit;
-      if (startingAfter) {
-        config.params.starting_after = startingAfter;
-      }
-
-      try {
-        const response = await axios.get(`${StripeAdapter.base_url}${endpoint.path}`, config);
-        console.log("API Response:", JSON.stringify(response.data, null, 2));
-
-        const { data, has_more } = response.data;
-
-        if (!Array.isArray(data)) {
-          console.warn("Data is not an array or is undefined:", response.data);
-          return { data: [], options: { nextOffset: undefined } };
-        }
-
-        const filteredResults = data.map((item: any) => {
-          const filteredItem: Record<string, any> = {};
-          connector.fields.forEach(field => {
-            if (item[field] !== undefined && item[field] !== null) {
-              filteredItem[field] = item[field];
-            }
-          });
-          console.log("Filtered Result:", JSON.stringify(filteredItem, null, 2));
-          return filteredItem;
-        });
-
-        totalFetched += filteredResults.length;
-
-        return {
-          data: filteredResults,
-          options: {
-            nextOffset: has_more && totalFetched < totalLimit && data.length > 0 ? data[data.length - 1].id : undefined,
-          },
+        const params = {
+            ...buildQueryParams(),
+            ...connector.config?.query_params,
         };
-      } catch (error: any) {
-        if (error.response && typeof error.response.status === 'number') {
-          const status = error.response.status;
-          console.log('Error status:', status);
-          if (status === 401) {
-            throw new Error('Invalid API key provided');
-          } else if (status === 429) {
-            const retryAfter = error.response.headers['retry-after'] ? parseInt(error.response.headers['retry-after'], 10) * 1000 : 1000;
-            console.log(`Rate limit hit, waiting ${retryAfter}ms`);
-            await delay(retryAfter);
-            console.log('Retrying download after delay');
-            return this.download(pageOptions);
-          }
-          console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
+        if (pageOptions?.limit) {
+            params.limit = pageOptions.limit;
         }
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error("Download error:", errorMessage);
-        throw new Error(`Download failed: ${errorMessage}`);
-      }
-    },
+        if (pageOptions?.offset) {
+            if (typeof pageOptions.offset !== 'string' || !pageOptions.offset.match(/^[a-z]{2,}_[A-Za-z0-9]+$/)) {
+                throw new Error(`Invalid offset '${pageOptions.offset}' for Stripe pagination; must be a valid Stripe ID (e.g., prod_abc123)`);
+            }
+            params.starting_after = pageOptions.offset;
+        }
+        const config = {
+            headers: {
+                'Authorization': `Bearer ${auth.credentials.api_key}`,
+                ...connector.config?.headers,
+            },
+            params,
+        };
+        log("Request config:", JSON.stringify(config, null, 2));
+        return config;
+    }
 
-    upload: async function(data: any[]): Promise<void> {
-      const config = await buildRequestConfig();
-      for (const item of data) {
+	function buildQueryParams(): Record<string, any> {
+        const params: Record<string, any> = {};
+        if (connector.fields.length > 0) {
+            params.expand = connector.fields.map(field => `data.${field}`);
+        }
+        if (connector.filters && connector.filters.length > 0) {
+            connector.filters.forEach(filter => {
+                if ('field' in filter && 'value' in filter) {
+                    params[filter.field] = filter.value;
+                }
+            });
+        }
+        if (connector.sort && connector.sort.length > 0) {
+            log("Warning: Stripe API does not support sorting; sort will be ignored.");
+        }
+        if (params.expand) {
+            params.expand = params.expand.filter((exp: string) => exp !== 'data.id' && exp.startsWith('data.'));
+            if (params.expand.length === 0) delete params.expand;
+        }
+        if (connector.config?.query_params?.expand) {
+            params.expand = [
+                ...(params.expand || []),
+                ...connector.config.query_params.expand,
+            ].filter((exp: string) => exp !== 'data.id' && exp.startsWith('data.'));
+            if (params.expand.length === 0) delete params.expand;
+        }
+        return params;
+    }
+
+	const download: AdapterInstance['download'] = async function (pageOptions) {
+        if (typeof pageOptions.limit === 'undefined') {
+            throw new Error('Number of items per page is required by the Stripe adapter');
+        }
+        if (pageOptions.limit > maxItemsPerPage) {
+            throw new Error('Number of items per page exceeds Stripe maximum');
+        }
+
+		console.log('starting a download...')
+		console.log(pageOptions)
+
+        const config = await buildRequestConfig(pageOptions);
         try {
-          const formData = new URLSearchParams();
-          for (const [key, value] of Object.entries(item)) {
-            formData.append(key, String(value));
-          }
-          await axios.post(`${StripeAdapter.base_url}${endpoint.path}`, formData, config);
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error("Upload error:", errorMessage);
-          throw error;
-        }
-      }
-    },
+			const response = await axios.get(`${StripeAdapter.base_url}${endpoint.path}`, config);
+			const { data, has_more } = response.data;
+	
+			log("API Response:", JSON.stringify(response.data, null, 2));
+	
+			if (!Array.isArray(data)) {
+				console.warn("Data is not an array or is undefined:", response.data);
+				return { data: [], options: { nextOffset: undefined } };
+			}
+	
+			let filteredResults = connector.fields.length > 0
+				? data.map((item: any) => {
+					const filteredItem: Record<string, any> = {};
+					connector.fields.forEach(field => {
+						if (item[field] !== undefined && item[field] !== null) {
+							filteredItem[field] = item[field];
+						}
+					});
+					return filteredItem;
+				})
+				: data;
+	
+			// Set nextOffset for cursor pagination
+			const nextOffset = has_more && data.length > 0 ? data[data.length - 1].id : undefined;
 
-    disconnect: async function(): Promise<void> {
-      console.log("Disconnecting from Stripe adapter (no-op)");
-    },
-  };
+			console.log(nextOffset)
+	
+			return {
+				data: filteredResults,
+				options: { nextOffset }
+			};
+        } catch (error) {
+            throw handleDownloadError(error);
+        }
+    };
+
+	const handleDownloadError = (error: any) => {
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		if (error.response && typeof error.response.status === 'number') {
+			console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
+		}
+		throw new Error(`Download failed: ${errorMessage}`);
+	};
+
+	return {
+		getConfig: () => {
+			return StripeAdapter;
+		},
+		connect: async function (): Promise<void> {
+			const config = await buildRequestConfig();
+			try {
+				log("Testing connection to Stripe...");
+				// Ensure params are clean and valid for a simple test
+				const testParams = {
+					limit: 1, // Minimal request to test connectivity
+					...(config.params && Object.keys(config.params).length > 0 ? config.params : {}),
+				};
+				// Remove invalid expand values like 'data.id'
+				if (testParams.expand) {
+					testParams.expand = testParams.expand.filter((exp: string) => exp !== 'data.id' && exp.startsWith('data.'));
+					if (testParams.expand.length === 0) delete testParams.expand;
+				}
+				await axios.get(`${StripeAdapter.base_url}/charges`, {
+					...config,
+					params: testParams,
+				});
+				log("Connection successful");
+			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+				throw new Error(`Failed to connect to Stripe: ${errorMessage}`);
+			}
+		},
+
+		download: async function (pageOptions) {
+			if (!endpoint.supported_actions.includes('download')) {
+				throw new Error(`${endpoint.id} endpoint doesn't support download`);
+			}
+
+			try {
+				return await download(pageOptions);
+			} catch (error: any) {
+				if (error.response?.status === 401) {
+					throw new Error("Invalid API key; please check your credentials");
+				} else if (error.response?.status === 429) {
+					const retryAfter = error.response.headers['retry-after']
+						? parseInt(error.response.headers['retry-after'], 10) * 1000
+						: 1000;
+					log(`Rate limit hit, waiting ${retryAfter}ms`);
+					await delay(retryAfter);
+					return await download(pageOptions);
+				}
+				throw handleDownloadError(error);
+			}
+		},
+
+		upload: async function (data: any[]): Promise<void> {
+			if (!endpoint.supported_actions.includes('upload')) {
+				throw new Error(`${endpoint.id} endpoint doesn't support upload`);
+			}
+
+			const config = await buildRequestConfig();
+			try {
+				// Stripe expects URL-encoded form data, so we convert the JSON data
+				const formData = new URLSearchParams();
+				data.forEach((item, index) => {
+					Object.entries(item).forEach(([key, value]) => {
+						formData.append(`${index}[${key}]`, String(value));
+					});
+				});
+
+				await axios.post(
+					`${StripeAdapter.base_url}${endpoint.path}`,
+					formData.toString(),
+					config
+				);
+			} catch (error) {
+				const errorMessage = isAxiosError(error) && error.response?.data?.error?.message
+					? error.response.data.error.message
+					: error instanceof Error ? error.message : 'Unknown error';
+				console.error("Upload error:", errorMessage);
+				throw new Error(`Upload failed: ${errorMessage}`);
+			}
+		},
+
+		disconnect: async function (): Promise<void> {
+			log("Disconnecting from Stripe adapter (no-op)");
+		},
+	};
 }
 
 export { stripe, StripeAdapter };

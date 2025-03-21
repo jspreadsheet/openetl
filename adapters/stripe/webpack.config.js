@@ -17,8 +17,8 @@ class MyPlugin {
 
             // Custom UMD header with axios passed to factory
             const header = `
-if (! pg && typeof(require) === 'function') {
-    var pg = require('pg');
+if (! axios && typeof(require) === 'function') {
+    var axios = require('axios');
 }
 
 ;(function (global, factory) {
@@ -43,7 +43,7 @@ if (! pg && typeof(require) === 'function') {
 }
 
 let dependencies = {
-    pg: "pg"
+    axios: "axios"
 }
 
 const webpack = {
