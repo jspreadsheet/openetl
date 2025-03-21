@@ -39,7 +39,6 @@ describe('HubSpot Adapter', () => {
                 client_secret: 'mock-client-secret',
                 refresh_token: 'mock-refresh-token',
                 access_token: 'mock-access-token',
-                token_url: 'https://api.hubapi.com/oauth/v1/token',
             },
             expires_at: new Date(Date.now() + 3600 * 1000).toISOString(), // Valid for 1 hour
         };
@@ -50,44 +49,6 @@ describe('HubSpot Adapter', () => {
 
     afterEach(() => {
         jest.useRealTimers();
-    });
-
-    /**
-     * Test 1: Connecting to HubSpot
-     * Ensures the adapter can establish a connection using the provided credentials.
-     */
-    it('connects successfully with valid credentials', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
-            status: 200,
-            data: { results: [] },
-        });
-
-        await expect(adapter.connect!()).resolves.toBeUndefined();
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-            'https://api.hubapi.com/crm/v3/objects/contacts',
-            expect.objectContaining({
-                headers: {
-                    Authorization: `Bearer ${auth.credentials.access_token}`,
-                    'Content-Type': 'application/json',
-                },
-                params: expect.objectContaining({
-                    limit: 1,
-                    properties: 'firstname,lastname,email',
-                    filterGroups: [{
-                        filters: [{
-                            propertyName: 'lifecyclestage',
-                            operator: 'EQ',
-                            value: 'customer',
-                        }],
-                    }],
-                }),
-            })
-        );
-    });
-
-    it('throws error on connection failure', async () => {
-        mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
-        await expect(adapter.connect!()).rejects.toThrow('Failed to connect to HubSpot: Network error');
     });
 
     it('downloads data with cursor-based pagination', async () => {
@@ -266,15 +227,6 @@ describe('HubSpot Adapter', () => {
                 },
             })
         );
-    });
-
-    it('disconnects without errors', async () => {
-        connector.debug = true;
-
-        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-        await expect(adapter.disconnect!()).resolves.toBeUndefined();
-        expect(consoleLogSpy).toHaveBeenCalledWith('Disconnecting from HubSpot adapter (no-op)');
-        consoleLogSpy.mockRestore();
     });
 
     it('throws error for invalid endpoint', () => {

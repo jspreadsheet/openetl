@@ -31,7 +31,6 @@ export type OAuth2Auth = BaseAuth & {
         client_secret: string;
         refresh_token?: string;
         access_token?: string;
-        token_url?: string;
     };
     scopes?: string[];
 };
@@ -222,6 +221,7 @@ export interface AdapterInstance {
         };
     }>;
     upload?(data: any[]): Promise<void>;
+    getOauthPermissionUrl?: (redirectUrl?: string) => string;
 }
 export type Adapter = (connector: Connector, auth: AuthConfig) => AdapterInstance;
 export type Adapters = {

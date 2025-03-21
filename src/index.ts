@@ -315,58 +315,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 throw new Error(`Credentials not found for id: ${connector.credential_id}`);
             }
 
-            if (auth.type === 'oauth2' && auth.credentials.token_url) {
-                const { client_id, client_secret, refresh_token, access_token, token_url } = auth.credentials;
-
-                // Check if access_token exists and is still valid
-                if (access_token && auth.expires_at) {
-                    const expiresAt = typeof auth.expires_at === 'string' ? new Date(auth.expires_at).getTime() : auth.expires_at;
-                    if (expiresAt > Date.now()) {
-                        return auth; // Return early if token is still valid
-                    }
-                }
-
-                // If refresh_token is available, use it to refresh the access token
-                if (refresh_token) {
-                    const baseData = {
-                        grant_type: 'refresh_token',
-                        client_id,
-                        client_secret,
-                        refresh_token,
-                    } as Record<string, string>;
-
-                    const response = await axios.post(token_url, new URLSearchParams(baseData).toString(), {
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                    });
-
-                    auth.credentials.access_token = response.data.access_token;
-                    auth.credentials.refresh_token = response.data.refresh_token || refresh_token; // Update if new refresh_token provided
-                    auth.expires_at = response.data.expires_in ? Date.now() + response.data.expires_in * 1000 : undefined;
-                }
-                // If no refresh_token but client_id and client_secret are present, try client_credentials grant
-                else if (client_id && client_secret) {
-                    const baseData = {
-                        grant_type: 'client_credentials',
-                        client_id,
-                        client_secret,
-                    } as Record<string, string>;
-
-                    const response = await axios.post(token_url, new URLSearchParams(baseData).toString(), {
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-                    });
-
-                    auth.credentials.access_token = response.data.access_token;
-                    auth.expires_at = response.data.expires_in ? Date.now() + response.data.expires_in * 1000 : undefined;
-                }
-                // If neither refresh_token nor a valid access_token is available, throw an error
-                else if (!access_token) {
-                    throw new Error(
-                        `OAuth2 credentials for ${connector.credential_id} lack a valid access_token or refresh_token. Initial authorization required.`
-                    );
-                }
-            }
-
-            // Return auth (with existing access_token if no refresh was needed)
+            // Return auth
             return auth;
         } catch (error) {
             throw error instanceof Error ? error : new Error(`Unknown error in getCredentials: ${String(error)}`);

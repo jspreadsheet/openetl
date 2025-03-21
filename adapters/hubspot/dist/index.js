@@ -270,7 +270,7 @@ function hubspot(connector, auth) {
         }
         log("Refreshing OAuth token...");
         try {
-            const response = await axios_1.default.post(auth.credentials.token_url || 'https://api.hubapi.com/oauth/v1/token', new URLSearchParams({
+            const response = await axios_1.default.post('https://api.hubapi.com/oauth/v1/token', new URLSearchParams({
                 grant_type: 'refresh_token',
                 client_id: auth.credentials.client_id,
                 client_secret: auth.credentials.client_secret,
@@ -412,21 +412,14 @@ function hubspot(connector, auth) {
         getConfig: () => {
             return HubSpotAdapter;
         },
-        connect: async function () {
-            const config = await buildRequestConfig();
-            try {
-                log("Testing connection to HubSpot...");
-                await axios_1.default.get(`${HubSpotAdapter.base_url}/crm/v3/objects/contacts`, {
-                    ...config,
-                    params: { limit: 1, ...config.params },
-                });
-                log("Connection successful");
+        getOauthPermissionUrl: (redirectUrl) => {
+            let result = `https://app.hubspot.com/oauth/authorize?client_id=${auth.credentials.client_id}`;
+            if (!redirectUrl) {
+                redirectUrl = window.location.href;
             }
-            catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                console.error("Connection test failed:", errorMessage);
-                throw new Error(`Failed to connect to HubSpot: ${errorMessage}`);
-            }
+            result += `&redirect_uri=${redirectUrl}`;
+            result += '&scope=content%20business-intelligence%20oauth%20crm.objects.owners.read%20forms%20tickets%20crm.objects.contacts.write%20e-commerce%20crm.objects.companies.write%20crm.objects.companies.read%20crm.objects.deals.read%20crm.objects.deals.write%20crm.objects.contacts.read';
+            return result;
         },
         download: async function (pageOptions) {
             if (!endpoint.supported_actions.includes('download')) {
@@ -491,9 +484,6 @@ function hubspot(connector, auth) {
                 console.error("Upload error:", errorMessage);
                 throw error;
             }
-        },
-        disconnect: async function () {
-            log("Disconnecting from HubSpot adapter (no-op)");
         },
     };
 }
