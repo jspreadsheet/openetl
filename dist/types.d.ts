@@ -200,7 +200,6 @@ export interface Pipeline<T = object> {
     error_handling?: {
         max_retries: number;
         retry_interval: number;
-        fail_on_error: boolean;
     };
     rate_limiting?: {
         requests_per_second: number;

@@ -41,12 +41,12 @@ async function fetchData(
     timeoutMs: number,
     errorHandling: {
         max_retries: number,
-        retry_interval: number,
-        fail_on_error: boolean
+        retry_interval: number
     },
     log: (event: PipelineEvent) => void,
 ) {
     let result,
+        lastError,
         attempt = 0;
 
     do {
@@ -71,9 +71,7 @@ async function fetchData(
                 message: `Attempt ${attempt + 1} failed in download: ${(error as Error).message}`
             });
 
-            if (errorHandling.fail_on_error) {
-                throw error;
-            }
+            lastError = error;
         }
 
         attempt++;
@@ -83,7 +81,12 @@ async function fetchData(
         return result;
     }
 
-    throw new Error('max_retries reached');
+    log({
+        type: 'error',
+        message: 'max_retries reached',
+    });
+
+    throw lastError;
 }
 
 interface PipelineWithSource<T = object> extends Pipeline<T> {
@@ -159,8 +162,7 @@ async function getDataSerially<T>(
     sourceAdapter: AdapterInstance,
     errorHandling: {
         max_retries: number,
-        retry_interval: number,
-        fail_on_error: boolean
+        retry_interval: number
     },
     log: (event: PipelineEvent) => void,
 ) {
@@ -279,8 +281,6 @@ async function getDataSerially<T>(
     return data;
 }
 
-class CriticalError extends Error {}
-
 /**
  * Creates an orchestrator instance for managing data pipelines
  * @param vault - Credential vault containing authentication configurations
@@ -327,7 +327,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
     /**
      * Executes a data pipeline
      * @param pipeline - Pipeline configuration and callbacks
-     * @throws Error if pipeline execution fails and fail_on_error is true
+     * @throws Error if pipeline execution fails
      */
     async function runPipeline<T>(pipeline: Pipeline<T>): Promise<{ data: T[] }> {
         let sourceAdapter: ReturnType<Adapter> | undefined;
@@ -349,8 +349,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
         // Initialize configuration with defaults
         const eh = pipeline.error_handling || {
             max_retries: 0,
-            retry_interval: 1000,
-            fail_on_error: true
+            retry_interval: 1000
         };
 
         let data: T[] = [];
@@ -361,7 +360,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
             if (pipeline.source) {
                 const Adapter = adapters.get(pipeline.source.adapter_id);
                 if (!Adapter) {
-                    throw new CriticalError(`Adapter ${pipeline.source.adapter_id} not found`);
+                    throw new Error(`Adapter ${pipeline.source.adapter_id} not found`);
                 }
 
                 // Get authentication
@@ -372,7 +371,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                     try {
                         await sourceAdapter.connect();
                     } catch (error) {
-                        throw new CriticalError(
+                        throw new Error(
                             error instanceof Error
                                 ? error.message
                                 : 'Something went wrong while establishing a connection to the source connector'
@@ -427,7 +426,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 // Initialize target adapter
                 const targetAdapterFactory = adapters.get(pipeline.target.adapter_id);
                 if (!targetAdapterFactory) {
-                    throw new CriticalError(`Target adapter ${pipeline.target.adapter_id} not found`);
+                    throw new Error(`Target adapter ${pipeline.target.adapter_id} not found`);
                 }
 
                 const targetAuth = await getCredentials(pipeline.target);
@@ -437,7 +436,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                     try {
                         await targetAdapter.connect();
                     } catch (error) {
-                        throw new CriticalError(
+                        throw new Error(
                             error instanceof Error
                                 ? error.message
                                 : 'Something went wrong while establishing a connection to the target connector'
@@ -467,7 +466,9 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                     const batch = finalData.slice(i, i + itemsPerBatch);
 
                     // Upload batch with retry logic
-                    for (let attempt = 0; attempt <= eh.max_retries; attempt++) {
+                    let attempt, lastError;
+
+                    for (attempt = 0; attempt <= eh.max_retries; attempt++) {
                         if (attempt > 0) {
                             await delay(eh.retry_interval);
                         }
@@ -481,10 +482,12 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                                 message: `Attempt ${attempt + 1} failed in upload: ${(error as Error).message}`
                             });
 
-                            if (eh.fail_on_error) {
-                                throw error;
-                            }
+                            lastError = error;
                         }
+                    }
+
+                    if (attempt > eh.max_retries) {
+                        throw lastError;
                     }
 
                     log({
@@ -504,9 +507,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 message: `Pipeline failed: ${(error as Error).message}`
             });
 
-            if (eh.fail_on_error || error instanceof CriticalError) {
-                throw error;
-            }
+            throw error;
         } finally {
             // Cleanup connections
             try {

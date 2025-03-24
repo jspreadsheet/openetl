@@ -267,8 +267,7 @@ describe('Orchestrator', () => {
             source: failingConnector,
             error_handling: {
                 max_retries: 3,
-                retry_interval: 1000,
-                fail_on_error: false
+                retry_interval: 1000
             },
             logging,
         };
@@ -326,7 +325,6 @@ describe('Orchestrator', () => {
             error_handling: {
                 max_retries: 0,
                 retry_interval: 1000,  // Add the required retry_interval
-                fail_on_error: true
             },
             logging,
         };

@@ -282,7 +282,13 @@ function hubspot(connector, auth) {
             log("Token refreshed successfully");
         }
         catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            let errorMessage;
+            if ((0, axios_1.isAxiosError)(error)) {
+                errorMessage = error.response?.data.message;
+            }
+            else {
+                errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            }
             console.error("Token refresh failed:", errorMessage);
             throw new Error(`OAuth token refresh failed: ${errorMessage}`);
         }
