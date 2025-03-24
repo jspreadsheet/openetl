@@ -156,97 +156,81 @@ async function delay(ms: number): Promise<void> {
 }
 
 function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
-	const log = function (...args: any) {
-		if (connector.debug) {
-			console.log(...arguments);
-		}
+	const endpoint = StripeAdapter.endpoints.find(e => e.id === connector.endpoint_id);
+	if (!endpoint) {
+		throw new Error(`Endpoint ${connector.endpoint_id} not found in Stripe adapter`);
+	}
+	if (auth.type !== 'api_key' || !auth.credentials.api_key) {
+		throw new Error("Stripe adapter requires an API key for authentication");
+	}
+
+	const log = (...args: any[]) => {
+		if (connector.debug) console.log(...args);
 	};
 
-	const endpoint = StripeAdapter.endpoints.find(e => e.id === connector.endpoint_id);
-    if (!endpoint) {
-        throw new Error(`Endpoint ${connector.endpoint_id} not found in Stripe adapter`);
-    }
-
 	async function buildRequestConfig(pageOptions?: { limit?: number; offset?: string | number }): Promise<any> {
-        if (auth.type !== 'api_key' || !auth.credentials.api_key) {
-            throw new Error("Stripe adapter requires an API key for authentication");
-        }
-        const params = {
-            ...buildQueryParams(),
-            ...connector.config?.query_params,
-        };
-        if (pageOptions?.limit) {
-            params.limit = pageOptions.limit;
-        }
-        if (pageOptions?.offset) {
-            if (typeof pageOptions.offset !== 'string' || !pageOptions.offset.match(/^[a-z]{2,}_[A-Za-z0-9]+$/)) {
-                throw new Error(`Invalid offset '${pageOptions.offset}' for Stripe pagination; must be a valid Stripe ID (e.g., prod_abc123)`);
-            }
-            params.starting_after = pageOptions.offset;
-        }
-        const config = {
-            headers: {
-                'Authorization': `Bearer ${auth.credentials.api_key}`,
-                ...connector.config?.headers,
-            },
-            params,
-        };
-        log("Request config:", JSON.stringify(config, null, 2));
-        return config;
-    }
+		if (auth.type !== 'api_key' || !auth.credentials.api_key) {
+			throw new Error("Stripe adapter requires an API key for authentication");
+		}
+		const params = {
+			...buildQueryParams(),
+			...connector.config?.query_params,
+		};
+		if (pageOptions?.limit) {
+			params.limit = pageOptions.limit;
+		}
+		if (pageOptions?.offset) {
+			if (typeof pageOptions.offset !== 'string' || !pageOptions.offset.match(/^[a-z]{2,}_[A-Za-z0-9]+$/)) {
+				throw new Error(`Invalid offset '${pageOptions.offset}' for Stripe pagination; must be a valid Stripe ID`);
+			}
+			params.starting_after = pageOptions.offset;
+		}
+		const config = {
+			headers: {
+				'Authorization': `Bearer ${auth.credentials.api_key}`, // Type-safe after guard
+				...connector.config?.headers,
+			},
+			params,
+		};
+		log("Request config:", JSON.stringify(config, null, 2));
+		return config;
+	}
 
 	function buildQueryParams(): Record<string, any> {
-        const params: Record<string, any> = {};
-        if (connector.fields.length > 0) {
-            params.expand = connector.fields.map(field => `data.${field}`);
-        }
-        if (connector.filters && connector.filters.length > 0) {
-            connector.filters.forEach(filter => {
-                if ('field' in filter && 'value' in filter) {
-                    params[filter.field] = filter.value;
-                }
-            });
-        }
-        if (connector.sort && connector.sort.length > 0) {
-            log("Warning: Stripe API does not support sorting; sort will be ignored.");
-        }
-        if (params.expand) {
-            params.expand = params.expand.filter((exp: string) => exp !== 'data.id' && exp.startsWith('data.'));
-            if (params.expand.length === 0) delete params.expand;
-        }
-        if (connector.config?.query_params?.expand) {
-            params.expand = [
-                ...(params.expand || []),
-                ...connector.config.query_params.expand,
-            ].filter((exp: string) => exp !== 'data.id' && exp.startsWith('data.'));
-            if (params.expand.length === 0) delete params.expand;
-        }
-        return params;
-    }
+		const params: Record<string, any> = {};
+		if (connector.filters && connector.filters.length > 0) {
+			connector.filters.forEach(filter => {
+				if ('field' in filter && 'value' in filter) {
+					params[filter.field] = filter.value;
+				}
+			});
+		}
+		return params;
+	}
 
 	const download: AdapterInstance['download'] = async function (pageOptions) {
-        if (typeof pageOptions.limit === 'undefined') {
-            throw new Error('Number of items per page is required by the Stripe adapter');
-        }
-        if (pageOptions.limit > maxItemsPerPage) {
-            throw new Error('Number of items per page exceeds Stripe maximum');
-        }
+		if (typeof pageOptions.limit === 'undefined') {
+			throw new Error('Number of items per page is required by the Stripe adapter');
+		}
+		if (pageOptions.limit > maxItemsPerPage) {
+			throw new Error('Number of items per page exceeds Stripe maximum');
+		}
 
 		console.log('starting a download...')
 		console.log(pageOptions)
 
-        const config = await buildRequestConfig(pageOptions);
-        try {
+		const config = await buildRequestConfig(pageOptions);
+		try {
 			const response = await axios.get(`${StripeAdapter.base_url}${endpoint.path}`, config);
 			const { data, has_more } = response.data;
-	
+
 			log("API Response:", JSON.stringify(response.data, null, 2));
-	
+
 			if (!Array.isArray(data)) {
 				console.warn("Data is not an array or is undefined:", response.data);
 				return { data: [], options: { nextOffset: undefined } };
 			}
-	
+
 			let filteredResults = connector.fields.length > 0
 				? data.map((item: any) => {
 					const filteredItem: Record<string, any> = {};
@@ -258,20 +242,18 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 					return filteredItem;
 				})
 				: data;
-	
+
 			// Set nextOffset for cursor pagination
 			const nextOffset = has_more && data.length > 0 ? data[data.length - 1].id : undefined;
 
-			console.log(nextOffset)
-	
 			return {
 				data: filteredResults,
 				options: { nextOffset }
 			};
-        } catch (error) {
-            throw handleDownloadError(error);
-        }
-    };
+		} catch (error) {
+			throw handleDownloadError(error);
+		}
+	};
 
 	const handleDownloadError = (error: any) => {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -289,19 +271,9 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 			const config = await buildRequestConfig();
 			try {
 				log("Testing connection to Stripe...");
-				// Ensure params are clean and valid for a simple test
-				const testParams = {
-					limit: 1, // Minimal request to test connectivity
-					...(config.params && Object.keys(config.params).length > 0 ? config.params : {}),
-				};
-				// Remove invalid expand values like 'data.id'
-				if (testParams.expand) {
-					testParams.expand = testParams.expand.filter((exp: string) => exp !== 'data.id' && exp.startsWith('data.'));
-					if (testParams.expand.length === 0) delete testParams.expand;
-				}
 				await axios.get(`${StripeAdapter.base_url}/charges`, {
 					...config,
-					params: testParams,
+					params: { limit: 1 },
 				});
 				log("Connection successful");
 			} catch (error) {
@@ -336,22 +308,31 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 			if (!endpoint.supported_actions.includes('upload')) {
 				throw new Error(`${endpoint.id} endpoint doesn't support upload`);
 			}
+			if (data.length !== 1) {
+				throw new Error('Stripe adapter only supports uploading one product at a time');
+			}
 
 			const config = await buildRequestConfig();
+			delete config.params;
 			try {
-				// Stripe expects URL-encoded form data, so we convert the JSON data
 				const formData = new URLSearchParams();
-				data.forEach((item, index) => {
-					Object.entries(item).forEach(([key, value]) => {
-						formData.append(`${index}[${key}]`, String(value));
-					});
+				const item = data[0];
+				Object.entries(item).forEach(([key, value]) => {
+					formData.append(key, String(value));
 				});
 
-				await axios.post(
+				const response = await axios.post(
 					`${StripeAdapter.base_url}${endpoint.path}`,
 					formData.toString(),
-					config
+					{
+						...config,
+						headers: {
+							...config.headers,
+							'Content-Type': 'application/x-www-form-urlencoded',
+						},
+					}
 				);
+				log("Upload successful:", JSON.stringify(response.data, null, 2));
 			} catch (error) {
 				const errorMessage = isAxiosError(error) && error.response?.data?.error?.message
 					? error.response.data.error.message
