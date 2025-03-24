@@ -1,4 +1,4 @@
-# OpenETL PostgreSQL Adapter
+# OpenETL Stripe Adapter
 
 ## Overview
 
@@ -6,7 +6,7 @@
 
 ## Getting Started
 
-npm install @openetl/postgresql
+npm install @openetl/stripe
 
 ## Contributing
 
