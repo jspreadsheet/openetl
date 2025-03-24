@@ -279,6 +279,8 @@ async function getDataSerially<T>(
     return data;
 }
 
+class CriticalError extends Error {}
+
 /**
  * Creates an orchestrator instance for managing data pipelines
  * @param vault - Credential vault containing authentication configurations
@@ -359,7 +361,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
             if (pipeline.source) {
                 const Adapter = adapters.get(pipeline.source.adapter_id);
                 if (!Adapter) {
-                    throw new Error(`Adapter ${pipeline.source.adapter_id} not found`);
+                    throw new CriticalError(`Adapter ${pipeline.source.adapter_id} not found`);
                 }
 
                 // Get authentication
@@ -367,7 +369,15 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 sourceAdapter = Adapter(pipeline.source, auth);
 
                 if (typeof sourceAdapter.connect === 'function') {
-                    await sourceAdapter.connect();
+                    try {
+                        await sourceAdapter.connect();
+                    } catch (error) {
+                        throw new CriticalError(
+                            error instanceof Error
+                                ? error.message
+                                : 'Something went wrong while establishing a connection to the source connector'
+                        );
+                    }
                 }
 
                 log({ type: 'info', message: 'Connected to source adapter' });
@@ -417,14 +427,22 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 // Initialize target adapter
                 const targetAdapterFactory = adapters.get(pipeline.target.adapter_id);
                 if (!targetAdapterFactory) {
-                    throw new Error(`Target adapter ${pipeline.target.adapter_id} not found`);
+                    throw new CriticalError(`Target adapter ${pipeline.target.adapter_id} not found`);
                 }
 
                 const targetAuth = await getCredentials(pipeline.target);
                 targetAdapter = targetAdapterFactory(pipeline.target, targetAuth);
 
                 if (typeof targetAdapter.connect === 'function') {
-                    await targetAdapter.connect();
+                    try {
+                        await targetAdapter.connect();
+                    } catch (error) {
+                        throw new CriticalError(
+                            error instanceof Error
+                                ? error.message
+                                : 'Something went wrong while establishing a connection to the target connector'
+                        );
+                    }
                 }
 
                 log({ type: 'info', message: 'Connected to target adapter' });
@@ -486,7 +504,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 message: `Pipeline failed: ${(error as Error).message}`
             });
 
-            if (eh.fail_on_error) {
+            if (eh.fail_on_error || error instanceof CriticalError) {
                 throw error;
             }
         } finally {
