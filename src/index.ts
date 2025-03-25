@@ -454,7 +454,7 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
                 let { paginationType, itemsPerPage: itemsPerBatch } = getPaginationFromEndpoint(
                     pipeline.target,
                     targetAdapter,
-                    pipeline.target.pagination?.itemsPerPage || 0,
+                    pipeline.target.pagination?.itemsPerPage || undefined,
                     log,
                 );
 

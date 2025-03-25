@@ -345,7 +345,7 @@ function Orchestrator(vault, availableAdapters) {
                     throw new Error(`Upload not supported by adapter ${pipeline.target.adapter_id}`);
                 }
                 // Upload data in batches
-                let { paginationType, itemsPerPage: itemsPerBatch } = getPaginationFromEndpoint(pipeline.target, targetAdapter, pipeline.target.pagination?.itemsPerPage || 0, log);
+                let { paginationType, itemsPerPage: itemsPerBatch } = getPaginationFromEndpoint(pipeline.target, targetAdapter, pipeline.target.pagination?.itemsPerPage || undefined, log);
                 if (paginationType !== 'offset' || typeof itemsPerBatch === 'undefined') {
                     itemsPerBatch = finalData.length;
                 }
