@@ -104,10 +104,6 @@ export type Filter = {
     operator: string;
     value: string | number;
 };
-export type FilterGroup = {
-    op: "AND" | "OR";
-    filters: Array<Filter | FilterGroup>;
-};
 export type BaseTransformationOption = {
     to?: string;
 };
@@ -170,7 +166,7 @@ export interface Connector {
         [key: string]: any;
     };
     fields: string[];
-    filters?: Array<Filter | FilterGroup>;
+    filters?: Array<Filter>;
     transform?: Transformation[];
     sort?: Sort[];
     limit?: number;

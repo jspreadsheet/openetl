@@ -8,7 +8,7 @@
  * Fix: Add batch upload support for efficiency.
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, FilterGroup, Filter } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance } from 'openetl';
 
 import axios, { isAxiosError } from 'axios';
 
@@ -48,8 +48,8 @@ const HubSpotAdapter: HttpAdapter = {
     // CRM Objects
     {
       id: "contacts",
-      path: "/crm/v3/objects/contacts",
-      method: "GET",
+      path: "/crm/v3/objects/contacts/search",
+      method: "POST",
       description: "Retrieve all contacts from HubSpot",
       supported_actions: ["download", "sync"],
     },
@@ -62,8 +62,8 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "companies",
-      path: "/crm/v3/objects/companies",
-      method: "GET",
+      path: "/crm/v3/objects/companies/search",
+      method: "POST",
       description: "Retrieve all companies from HubSpot",
       supported_actions: ["download", "sync"],
     },
@@ -76,8 +76,8 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "deals",
-      path: "/crm/v3/objects/deals",
-      method: "GET",
+      path: "/crm/v3/objects/deals/search",
+      method: "POST",
       description: "Retrieve all deals from HubSpot",
       supported_actions: ["download", "sync"],
     },
@@ -90,8 +90,8 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "tickets",
-      path: "/crm/v3/objects/tickets",
-      method: "GET",
+      path: "/crm/v3/objects/tickets/search",
+      method: "POST",
       description: "Retrieve all support tickets from HubSpot",
       supported_actions: ["download", "sync"],
     },
@@ -104,8 +104,8 @@ const HubSpotAdapter: HttpAdapter = {
     },
     {
       id: "products",
-      path: "/crm/v3/objects/products",
-      method: "GET",
+      path: "/crm/v3/objects/products/search",
+      method: "POST",
       description: "Retrieve all products from HubSpot",
       supported_actions: ["download", "sync"],
     },
@@ -148,13 +148,13 @@ const HubSpotAdapter: HttpAdapter = {
     // },
 
     // Analytics Endpoints
-    {
-      id: "analytics-events",
-      path: "/events/v3/events",
-      method: "GET",
-      description: "Retrieve analytics events from HubSpot",
-      supported_actions: ["download", "sync"],
-    },
+    // {
+    //   id: "analytics-events",
+    //   path: "/events/v3/events",
+    //   method: "GET",
+    //   description: "Retrieve analytics events from HubSpot",
+    //   supported_actions: ["download", "sync"],
+    // },
 
     // // Engagements (Activities)
     // {
@@ -173,29 +173,29 @@ const HubSpotAdapter: HttpAdapter = {
     // },
 
     // Pipelines
-    {
-      id: "pipelines",
-      path: "/crm/v3/pipelines/deals",
-      method: "GET",
-      description: "Retrieve all deal pipelines from HubSpot",
-      supported_actions: ["download", "sync"],
-    },
-    {
-      id: "ticket-pipelines",
-      path: "/crm/v3/pipelines/tickets",
-      method: "GET",
-      description: "Retrieve all ticket pipelines from HubSpot",
-      supported_actions: ["download", "sync"],
-    },
+    // {
+    //   id: "pipelines",
+    //   path: "/crm/v3/pipelines/deals",
+    //   method: "GET",
+    //   description: "Retrieve all deal pipelines from HubSpot",
+    //   supported_actions: ["download", "sync"],
+    // },
+    // {
+    //   id: "ticket-pipelines",
+    //   path: "/crm/v3/pipelines/tickets",
+    //   method: "GET",
+    //   description: "Retrieve all ticket pipelines from HubSpot",
+    //   supported_actions: ["download", "sync"],
+    // },
 
     // Owners
-    {
-      id: "owners",
-      path: "/crm/v3/owners",
-      method: "GET",
-      description: "Retrieve all owners (users) in HubSpot",
-      supported_actions: ["download", "sync"],
-    },
+    // {
+    //   id: "owners",
+    //   path: "/crm/v3/owners",
+    //   method: "GET",
+    //   description: "Retrieve all owners (users) in HubSpot",
+    //   supported_actions: ["download", "sync"],
+    // },
   ],
 };
 
@@ -270,47 +270,42 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
                 ...connector.config?.headers,
             },
             params: {
-                ...buildQueryParams(),
                 ...connector.config?.query_params,
             },
         };
     }
 
-    function buildQueryParams(): Record<string, any> {
-        const params: Record<string, any> = {};
-        if (connector.fields.length > 0) params.properties = connector.fields.join(',');
-        if (connector.filters && connector.filters.length > 0) {
-            params.filterGroups = connector.filters.map(filter => {
-                if ('op' in filter) {
-                    return {
-                        filters: (filter as FilterGroup).filters.map((f: Filter | FilterGroup) => {
-                            if (!('op' in f)) {
-                                return {
-                                    propertyName: (f as Filter).field,
-                                    operator: mapOperator((f as Filter).operator),
-                                    value: (f as Filter).value,
-                                };
-                            }
-                            throw new Error('Nested filter groups are not supported');
-                        }),
-                    };
-                }
-                return {
-                    filters: [{
-                        propertyName: (filter as Filter).field,
-                        operator: mapOperator((filter as Filter).operator),
-                        value: (filter as Filter).value,
-                    }],
-                };
-            });
+    function getSearchBody(limit: number | undefined, after: number | string | undefined): Record<string, any> {
+        const body: Record<string, any> = {};
+
+        if (limit) {
+            body.limit = limit;
         }
+
+        if (after) {
+            body.after = after;
+        }
+
+        if (connector.fields.length > 0) body.properties = connector.fields.join(',');
+
+        if (connector.filters && connector.filters.length > 0) {
+            body.filterGroups = [{
+                filters: connector.filters.map(filter => ({
+                    propertyName: filter.field,
+                    operator: mapOperator(filter.operator),
+                    value: filter.value,
+                }))
+            }];
+        }
+
         if (connector.sort && connector.sort.length > 0) {
-            params.sorts = connector.sort.map(sort => ({
+            body.sorts = connector.sort.map(sort => ({
                 propertyName: sort.field,
                 direction: sort.type === 'asc' ? 'ASCENDING' : 'DESCENDING',
             }));
         }
-        return params;
+
+        return body;
     }
 
     function mapOperator(operator: string): string {
@@ -336,15 +331,27 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
         }
 
-        config.params.limit = limit;
-
         const after = typeof offset === 'number' ? offset.toString() : offset;
 
-        if (after) {
-            config.params.after = after;
+        let response;
+        if (endpoint.method === 'POST') {
+            const body = getSearchBody(limit, after);
+
+            response = await axios.post(
+                `${HubSpotAdapter.base_url}${endpoint.path}`,
+                body,
+                config
+            );
+        } else {
+            config.params.limit = limit;
+
+            if (after) {
+                config.params.after = after;
+            }
+
+            response = await axios.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
         }
 
-        const response = await axios.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
         log("API Response:", JSON.stringify(response.data, null, 2));
 
         const { paging, results } = response.data;

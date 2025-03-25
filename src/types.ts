@@ -140,11 +140,6 @@ export type Filter = {
     value: string | number;
 };
 
-export type FilterGroup = {
-    op: "AND" | "OR";
-    filters: Array<Filter | FilterGroup>;
-};
-
 export type BaseTransformationOption = {
     to?: string;
 };
@@ -245,7 +240,7 @@ export interface Connector {
         [key: string]: any;
     };
     fields: string[];
-    filters?: Array<Filter | FilterGroup>;
+    filters?: Array<Filter>;
     transform?: Transformation[];
     sort?: Sort[];
     limit?: number;                    // Total items to fetch, defaults to 1M in core.ts if unset

@@ -3,7 +3,7 @@
  * https://componade.com/openetl
  */
 
-import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth, Filter, FilterGroup } from 'openetl';
+import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth } from 'openetl';
 import pg from 'pg'; // Use named imports
 import { QueryResult } from 'pg'; // Use named imports
 
@@ -101,10 +101,6 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
     return auth.type === 'basic';
   }
 
-  function isFilter(filter: Filter | FilterGroup): filter is Filter {
-    return 'field' in filter && 'operator' in filter && 'value' in filter;
-  }
-
   let pool: pg.Pool;
 
   function buildSelectQuery(customLimit?: number, customOffset?: number): string {
@@ -131,12 +127,6 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
     // WHERE clause
     if (connector.filters && connector.filters.length > 0) {
       const whereClauses = connector.filters.map(filter => {
-        if (!isFilter(filter)) {
-          const subClauses = filter.filters.map(f =>
-              isFilter(f) ? `${f.field} ${f.operator} '${f.value}'` : ''
-          );
-          return `(${subClauses.join(` ${filter.op} `)})`;
-        }
         return `${filter.field} ${filter.operator} '${filter.value}'`;
       });
       parts.push(`WHERE ${whereClauses.join(' AND ')}`);
