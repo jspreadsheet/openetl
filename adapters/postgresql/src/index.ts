@@ -101,7 +101,7 @@ function postgresql(connector: Connector, auth: AuthConfig): AdapterInstance {
   }
 
   function isBasicAuth(auth: AuthConfig): auth is BasicAuth {
-    return auth.type === 'basic';
+    return auth.type === 'basic' && typeof auth.credentials === 'object';
   }
 
   let pool: pg.Pool;

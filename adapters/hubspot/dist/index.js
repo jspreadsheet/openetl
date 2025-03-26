@@ -65,7 +65,6 @@ exports.HubSpotAdapter = void 0;
 exports.hubspot = hubspot;
 const axios_1 = __importStar(__webpack_require__(467));
 const maxItemsPerPage = 100;
-// @ts-ignore
 const HubSpotAdapter = {
     id: "hubspot-adapter",
     name: "HubSpot CRM Adapter",
@@ -250,7 +249,6 @@ const HubSpotAdapter = {
         //   supported_actions: ["download", "sync"],
         // },
     ],
-    // @ts-ignore
     helpers: {
         getCode: function (redirectUrl, client_id) {
             let result = `https://app.hubspot.com/oauth/authorize?client_id=${client_id}`;
@@ -302,7 +300,7 @@ function hubspot(connector, auth) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in HubSpot adapter`);
     }
     function isOAuth2Auth(auth) {
-        return auth.type === 'oauth2';
+        return auth.type === 'oauth2' && typeof auth.credentials === 'object';
     }
     async function refreshOAuthToken() {
         if (!isOAuth2Auth(auth)) {

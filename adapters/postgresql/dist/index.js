@@ -119,7 +119,7 @@ function postgresql(connector, auth) {
         throw new Error(`Endpoint ${connector.endpoint_id} not found in PostgreSQL adapter`);
     }
     function isBasicAuth(auth) {
-        return auth.type === 'basic';
+        return auth.type === 'basic' && typeof auth.credentials === 'object';
     }
     let pool;
     function buildSelectQuery(customLimit, customOffset) {
