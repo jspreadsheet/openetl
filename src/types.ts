@@ -109,7 +109,7 @@ export interface BaseAdapter {
         [key: string]: any;
     };
     pagination?: AdapterPagination;
-    helpers: Helpers;
+    helpers?: Helpers;
 }
 
 export interface Endpoint {

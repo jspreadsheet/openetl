@@ -14,7 +14,6 @@ import axios, { isAxiosError } from 'axios';
 
 const maxItemsPerPage = 100;
 
-// @ts-ignore
 const HubSpotAdapter: HttpAdapter = {
   id: "hubspot-adapter",
   name: "HubSpot CRM Adapter",
@@ -204,7 +203,6 @@ const HubSpotAdapter: HttpAdapter = {
     //   supported_actions: ["download", "sync"],
     // },
   ],
-  // @ts-ignore
   helpers: {
     getCode: function(redirectUrl: string, client_id: string) {
       let result = `https://app.hubspot.com/oauth/authorize?client_id=${client_id}`;
@@ -258,7 +256,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
     }
 
     function isOAuth2Auth(auth: AuthConfig): auth is OAuth2Auth {
-        return auth.type === 'oauth2';
+        return auth.type === 'oauth2' && typeof auth.credentials === 'object';
     }
 
     async function refreshOAuthToken(): Promise<void> {
@@ -302,6 +300,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         if (!isOAuth2Auth(auth)) {
             throw new Error("HubSpot adapter requires OAuth2 authentication");
         }
+
         if (!auth.credentials.access_token || (auth.expires_at && new Date(auth.expires_at) < new Date())) {
             await refreshOAuthToken();
         }
