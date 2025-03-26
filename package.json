@@ -1,11 +1,11 @@
 {
   "name": "openetl",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "ETL System with TypeScript support",
   "main": "dist/index.js",
   "scripts": {
     "build": "npx webpack --config webpack.config.js",
-    "test": "jest openetl/tests",
+    "test": "jest openetl-new/tests",
     "lint": "eslint src --ext .ts"
   },
   "license": "MIT",

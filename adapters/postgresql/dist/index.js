@@ -80,6 +80,7 @@ const PostgresqlAdapter = {
                         id: 'custom_query',
                         name: 'custom_query',
                         required: true,
+                        type: 'sql',
                     },
                 ]
             }
