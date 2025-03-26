@@ -21,10 +21,6 @@ var gmail;
 /**
  * Gmail Adapter for OpenETL
  * https://componade.com/openetl
- *
- * @TODO:
- * - Add support for batch requests to improve performance (e.g., batch message retrieval).
- * - Implement label management endpoints.
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -72,10 +68,12 @@ const GmailAdapter = {
     base_url: "https://gmail.googleapis.com/gmail/v1",
     config: [
         {
+            id: 'headers',
             name: 'headers',
             required: false,
         },
         {
+            id: 'query_params',
             name: 'query_params',
             required: false,
         },
@@ -172,7 +170,7 @@ function gmail(connector, auth) {
         }
         log("Refreshing OAuth token...");
         try {
-            const response = await axios_1.default.post(auth.credentials.token_url || 'https://oauth2.googleapis.com/token', new URLSearchParams({
+            const response = await axios_1.default.post('https://oauth2.googleapis.com/token', new URLSearchParams({
                 grant_type: 'refresh_token',
                 client_id: auth.credentials.client_id,
                 client_secret: auth.credentials.client_secret,

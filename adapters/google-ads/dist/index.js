@@ -38,23 +38,18 @@ const GoogleAdsAdapter = {
     credential_type: "oauth2",
     config: [
         {
+            id: 'customerId',
             name: 'customerId',
             required: true,
         },
         {
+            id: 'developerToken',
             name: 'developerToken',
             required: true,
         },
         {
-            name: 'table',
-            required: false,
-        },
-        {
+            id: 'loginCustomerId',
             name: 'loginCustomerId',
-            required: false,
-        },
-        {
-            name: 'custom_query',
             required: false,
         }
     ],
@@ -70,7 +65,14 @@ const GoogleAdsAdapter = {
             description: "Query a specific table",
             supported_actions: ["download"],
             settings: {
-                pagination: false
+                pagination: false,
+                config: [
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ],
             }
         },
         {
@@ -79,7 +81,14 @@ const GoogleAdsAdapter = {
             description: "Run a custom query",
             supported_actions: ["download"],
             settings: {
-                pagination: false
+                pagination: false,
+                config: [
+                    {
+                        id: 'custom_query',
+                        name: 'custom_query',
+                        required: true,
+                    },
+                ],
             }
         },
     ],
@@ -193,9 +202,6 @@ function googleAds(connector, auth) {
             },
         };
     }
-    function isFilter(filter) {
-        return 'field' in filter && 'operator' in filter && 'value' in filter;
-    }
     function buildSelectQuery(customLimit) {
         if (endpoint.id === "custom_query" && connector.config?.custom_query) {
             return connector.config.custom_query;
@@ -214,10 +220,6 @@ function googleAds(connector, auth) {
         // WHERE clause
         if (connector.filters && connector.filters.length > 0) {
             const whereClauses = connector.filters.map(filter => {
-                if (!isFilter(filter)) {
-                    const subClauses = filter.filters.map(f => isFilter(f) ? `${f.field} ${f.operator} '${f.value}'` : '');
-                    return `(${subClauses.join(` ${filter.op} `)})`;
-                }
                 return `${filter.field} ${filter.operator} '${filter.value}'`;
             });
             parts.push(`WHERE ${whereClauses.join(' AND ')}`);

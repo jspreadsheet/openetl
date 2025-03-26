@@ -3,7 +3,7 @@
  * https://componade.com/openetl
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter, FilterGroup } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
 const GmailAdapter: HttpAdapter = {
@@ -15,10 +15,12 @@ const GmailAdapter: HttpAdapter = {
   base_url: "https://gmail.googleapis.com/gmail/v1",
   config: [
     {
+      id: 'headers',
       name: 'headers',
       required: false,
     },
     {
+      id: 'query_params',
       name: 'query_params',
       required: false,
     },
@@ -120,7 +122,7 @@ function gmail(connector: Connector, auth: AuthConfig): AdapterInstance {
     log("Refreshing OAuth token...");
     try {
       const response = await axios.post(
-        auth.credentials.token_url || 'https://oauth2.googleapis.com/token',
+        'https://oauth2.googleapis.com/token',
         new URLSearchParams({
           grant_type: 'refresh_token',
           client_id: auth.credentials.client_id,
