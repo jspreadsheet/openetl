@@ -16,7 +16,7 @@ const maxItemsPerPage = 100;
 
 // @ts-ignore
 const HubSpotAdapter: HttpAdapter = {
-  id: "hubspot-adapter",
+  id: "hubspot",
   name: "HubSpot CRM Adapter",
   type: "http",
   category: 'SaaS & CRM Applications',
