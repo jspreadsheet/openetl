@@ -15,7 +15,7 @@ import axios, { isAxiosError } from 'axios';
 const maxItemsPerPage = 100;
 
 const HubSpotAdapter: HttpAdapter = {
-  id: "hubspot-adapter",
+  id: "hubspot",
   name: "HubSpot CRM Adapter",
   type: "http",
   category: 'SaaS & CRM Applications',
