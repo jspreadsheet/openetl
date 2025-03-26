@@ -38,7 +38,7 @@ const DEFAULT_CONFIG = {
     TIMEOUT_MS: 30000,
 };
 async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartTime, timeoutMs, errorHandling, log) {
-    let result, attempt = 0;
+    let result, lastError, attempt = 0;
     do {
         if (attempt > 0) {
             await delay(errorHandling.retry_interval);
@@ -59,16 +59,18 @@ async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartT
                 type: 'error',
                 message: `Attempt ${attempt + 1} failed in download: ${error.message}`
             });
-            if (errorHandling.fail_on_error) {
-                throw error;
-            }
+            lastError = error;
         }
         attempt++;
     } while (!result && attempt <= errorHandling.max_retries);
     if (result) {
         return result;
     }
-    throw new Error('max_retries reached');
+    log({
+        type: 'error',
+        message: 'max_retries reached',
+    });
+    throw lastError;
 }
 function getPaginationFromEndpoint(connector, adapter, itemsPerPage, log) {
     const adapterConfig = adapter.getConfig();
@@ -245,7 +247,7 @@ function Orchestrator(vault, availableAdapters) {
     /**
      * Executes a data pipeline
      * @param pipeline - Pipeline configuration and callbacks
-     * @throws Error if pipeline execution fails and fail_on_error is true
+     * @throws Error if pipeline execution fails
      */
     async function runPipeline(pipeline) {
         let sourceAdapter;
@@ -264,8 +266,7 @@ function Orchestrator(vault, availableAdapters) {
         // Initialize configuration with defaults
         const eh = pipeline.error_handling || {
             max_retries: 0,
-            retry_interval: 1000,
-            fail_on_error: true
+            retry_interval: 1000
         };
         let data = [];
         log({ type: 'start', message: 'Pipeline started' });
@@ -280,7 +281,14 @@ function Orchestrator(vault, availableAdapters) {
                 const auth = await getCredentials(pipeline.source);
                 sourceAdapter = Adapter(pipeline.source, auth);
                 if (typeof sourceAdapter.connect === 'function') {
-                    await sourceAdapter.connect();
+                    try {
+                        await sourceAdapter.connect();
+                    }
+                    catch (error) {
+                        throw new Error(error instanceof Error
+                            ? error.message
+                            : 'Something went wrong while establishing a connection to the source connector');
+                    }
                 }
                 log({ type: 'info', message: 'Connected to source adapter' });
                 // Fetch data in pages
@@ -323,21 +331,29 @@ function Orchestrator(vault, availableAdapters) {
                 const targetAuth = await getCredentials(pipeline.target);
                 targetAdapter = targetAdapterFactory(pipeline.target, targetAuth);
                 if (typeof targetAdapter.connect === 'function') {
-                    await targetAdapter.connect();
+                    try {
+                        await targetAdapter.connect();
+                    }
+                    catch (error) {
+                        throw new Error(error instanceof Error
+                            ? error.message
+                            : 'Something went wrong while establishing a connection to the target connector');
+                    }
                 }
                 log({ type: 'info', message: 'Connected to target adapter' });
                 if (!targetAdapter.upload) {
                     throw new Error(`Upload not supported by adapter ${pipeline.target.adapter_id}`);
                 }
                 // Upload data in batches
-                let { paginationType, itemsPerPage: itemsPerBatch } = getPaginationFromEndpoint(pipeline.target, targetAdapter, pipeline.target.pagination?.itemsPerPage || 0, log);
+                let { paginationType, itemsPerPage: itemsPerBatch } = getPaginationFromEndpoint(pipeline.target, targetAdapter, pipeline.target.pagination?.itemsPerPage || undefined, log);
                 if (paginationType !== 'offset' || typeof itemsPerBatch === 'undefined') {
                     itemsPerBatch = finalData.length;
                 }
                 for (let i = 0; i < finalData.length; i += itemsPerBatch) {
                     const batch = finalData.slice(i, i + itemsPerBatch);
                     // Upload batch with retry logic
-                    for (let attempt = 0; attempt <= eh.max_retries; attempt++) {
+                    let attempt, lastError;
+                    for (attempt = 0; attempt <= eh.max_retries; attempt++) {
                         if (attempt > 0) {
                             await delay(eh.retry_interval);
                         }
@@ -350,10 +366,11 @@ function Orchestrator(vault, availableAdapters) {
                                 type: 'error',
                                 message: `Attempt ${attempt + 1} failed in upload: ${error.message}`
                             });
-                            if (eh.fail_on_error) {
-                                throw error;
-                            }
+                            lastError = error;
                         }
+                    }
+                    if (attempt > eh.max_retries) {
+                        throw lastError;
                     }
                     log({
                         type: 'load',
@@ -370,9 +387,7 @@ function Orchestrator(vault, availableAdapters) {
                 type: 'error',
                 message: `Pipeline failed: ${error.message}`
             });
-            if (eh.fail_on_error) {
-                throw error;
-            }
+            throw error;
         }
         finally {
             // Cleanup connections

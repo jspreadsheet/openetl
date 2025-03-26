@@ -1,7 +1,7 @@
 import { postgresql } from '../src/index'; // Adjust path as needed
 import pg from 'pg';
 import { Connector, AuthConfig, AdapterInstance } from '../../../src/types';
-import { FilterGroup } from 'openetl';
+import { Filter } from 'openetl';
 
 jest.mock('pg');
 
@@ -227,13 +227,10 @@ describe('PostgreSQL Adapter', () => {
    * Tests handling of filter groups.
    */
   it('builds query with filter groups', async () => {
-    const filters: FilterGroup[] = [{
-      op: 'OR',
-      filters: [
-        { field: 'status', operator: '=', value: 'active' },
-        { field: 'role', operator: '=', value: 'admin' },
-      ],
-    }]
+    const filters: Filter[] = [
+      { field: 'status', operator: '=', value: 'active' },
+      { field: 'role', operator: '=', value: 'admin' },
+    ];
 
     const connectorWithFilterGroup = {
       ...connector,
@@ -248,7 +245,7 @@ describe('PostgreSQL Adapter', () => {
 
     const result = await adapterWithFilterGroup.download({ limit: 1, offset: 0 });
     expect(mockPool.query).toHaveBeenCalledWith(
-      `SELECT id, name, email FROM "public"."users" WHERE (status = 'active' OR role = 'admin') ORDER BY name ASC LIMIT 1 OFFSET 0`
+      `SELECT id, name, email FROM "public"."users" WHERE status = 'active' AND role = 'admin' ORDER BY name ASC LIMIT 1 OFFSET 0`
     );
     expect(result.data).toEqual(mockRows);
   });

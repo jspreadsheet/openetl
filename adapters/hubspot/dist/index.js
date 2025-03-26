@@ -99,10 +99,11 @@ const HubSpotAdapter = {
         // CRM Objects
         {
             id: "contacts",
-            path: "/crm/v3/objects/contacts",
-            method: "GET",
+            path: "/crm/v3/objects/contacts/search",
+            method: "POST",
             description: "Retrieve all contacts from HubSpot",
             supported_actions: ["download", "sync"],
+            tool: 'hubspot_search_contacts',
         },
         {
             id: "create-contact",
@@ -110,13 +111,15 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Create a new contact in HubSpot",
             supported_actions: ["upload"],
+            tool: 'hubspot_create_contacts',
         },
         {
             id: "companies",
-            path: "/crm/v3/objects/companies",
-            method: "GET",
+            path: "/crm/v3/objects/companies/search",
+            method: "POST",
             description: "Retrieve all companies from HubSpot",
             supported_actions: ["download", "sync"],
+            tool: 'hubspot_search_companies',
         },
         {
             id: "create-company",
@@ -124,13 +127,15 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Create a new company in HubSpot",
             supported_actions: ["upload"],
+            tool: 'hubspot_create_companies',
         },
         {
             id: "deals",
-            path: "/crm/v3/objects/deals",
-            method: "GET",
+            path: "/crm/v3/objects/deals/search",
+            method: "POST",
             description: "Retrieve all deals from HubSpot",
             supported_actions: ["download", "sync"],
+            tool: 'hubspot_search_deals',
         },
         {
             id: "create-deal",
@@ -138,11 +143,12 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Create a new deal in HubSpot",
             supported_actions: ["upload"],
+            tool: 'hubspot_create_deals',
         },
         {
             id: "tickets",
-            path: "/crm/v3/objects/tickets",
-            method: "GET",
+            path: "/crm/v3/objects/tickets/search",
+            method: "POST",
             description: "Retrieve all support tickets from HubSpot",
             supported_actions: ["download", "sync"],
         },
@@ -155,8 +161,8 @@ const HubSpotAdapter = {
         },
         {
             id: "products",
-            path: "/crm/v3/objects/products",
-            method: "GET",
+            path: "/crm/v3/objects/products/search",
+            method: "POST",
             description: "Retrieve all products from HubSpot",
             supported_actions: ["download", "sync"],
         },
@@ -197,13 +203,13 @@ const HubSpotAdapter = {
         //   supported_actions: ["upload"],
         // },
         // Analytics Endpoints
-        {
-            id: "analytics-events",
-            path: "/events/v3/events",
-            method: "GET",
-            description: "Retrieve analytics events from HubSpot",
-            supported_actions: ["download", "sync"],
-        },
+        // {
+        //   id: "analytics-events",
+        //   path: "/events/v3/events",
+        //   method: "GET",
+        //   description: "Retrieve analytics events from HubSpot",
+        //   supported_actions: ["download", "sync"],
+        // },
         // // Engagements (Activities)
         // {
         //   id: "engagements",
@@ -220,28 +226,28 @@ const HubSpotAdapter = {
         //   supported_actions: ["upload"],
         // },
         // Pipelines
-        {
-            id: "pipelines",
-            path: "/crm/v3/pipelines/deals",
-            method: "GET",
-            description: "Retrieve all deal pipelines from HubSpot",
-            supported_actions: ["download", "sync"],
-        },
-        {
-            id: "ticket-pipelines",
-            path: "/crm/v3/pipelines/tickets",
-            method: "GET",
-            description: "Retrieve all ticket pipelines from HubSpot",
-            supported_actions: ["download", "sync"],
-        },
+        // {
+        //   id: "pipelines",
+        //   path: "/crm/v3/pipelines/deals",
+        //   method: "GET",
+        //   description: "Retrieve all deal pipelines from HubSpot",
+        //   supported_actions: ["download", "sync"],
+        // },
+        // {
+        //   id: "ticket-pipelines",
+        //   path: "/crm/v3/pipelines/tickets",
+        //   method: "GET",
+        //   description: "Retrieve all ticket pipelines from HubSpot",
+        //   supported_actions: ["download", "sync"],
+        // },
         // Owners
-        {
-            id: "owners",
-            path: "/crm/v3/owners",
-            method: "GET",
-            description: "Retrieve all owners (users) in HubSpot",
-            supported_actions: ["download", "sync"],
-        },
+        // {
+        //   id: "owners",
+        //   path: "/crm/v3/owners",
+        //   method: "GET",
+        //   description: "Retrieve all owners (users) in HubSpot",
+        //   supported_actions: ["download", "sync"],
+        // },
     ],
 };
 exports.HubSpotAdapter = HubSpotAdapter;
@@ -282,7 +288,13 @@ function hubspot(connector, auth) {
             log("Token refreshed successfully");
         }
         catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            let errorMessage;
+            if ((0, axios_1.isAxiosError)(error)) {
+                errorMessage = error.response?.data.message;
+            }
+            else {
+                errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            }
             console.error("Token refresh failed:", errorMessage);
             throw new Error(`OAuth token refresh failed: ${errorMessage}`);
         }
@@ -301,47 +313,36 @@ function hubspot(connector, auth) {
                 ...connector.config?.headers,
             },
             params: {
-                ...buildQueryParams(),
                 ...connector.config?.query_params,
             },
         };
     }
-    function buildQueryParams() {
-        const params = {};
+    function getSearchBody(limit, after) {
+        const body = {};
+        if (limit) {
+            body.limit = limit;
+        }
+        if (after) {
+            body.after = after;
+        }
         if (connector.fields.length > 0)
-            params.properties = connector.fields.join(',');
+            body.properties = connector.fields.join(',');
         if (connector.filters && connector.filters.length > 0) {
-            params.filterGroups = connector.filters.map(filter => {
-                if ('op' in filter) {
-                    return {
-                        filters: filter.filters.map((f) => {
-                            if (!('op' in f)) {
-                                return {
-                                    propertyName: f.field,
-                                    operator: mapOperator(f.operator),
-                                    value: f.value,
-                                };
-                            }
-                            throw new Error('Nested filter groups are not supported');
-                        }),
-                    };
-                }
-                return {
-                    filters: [{
-                            propertyName: filter.field,
-                            operator: mapOperator(filter.operator),
-                            value: filter.value,
-                        }],
-                };
-            });
+            body.filterGroups = [{
+                    filters: connector.filters.map(filter => ({
+                        propertyName: filter.field,
+                        operator: mapOperator(filter.operator),
+                        value: filter.value,
+                    }))
+                }];
         }
         if (connector.sort && connector.sort.length > 0) {
-            params.sorts = connector.sort.map(sort => ({
+            body.sorts = connector.sort.map(sort => ({
                 propertyName: sort.field,
                 direction: sort.type === 'asc' ? 'ASCENDING' : 'DESCENDING',
             }));
         }
-        return params;
+        return body;
     }
     function mapOperator(operator) {
         const operatorMap = {
@@ -361,12 +362,19 @@ function hubspot(connector, auth) {
         if (limit > maxItemsPerPage) {
             throw new Error('Number of items per page is greater than the maximum allowed by the HubSpot adapter');
         }
-        config.params.limit = limit;
         const after = typeof offset === 'number' ? offset.toString() : offset;
-        if (after) {
-            config.params.after = after;
+        let response;
+        if (endpoint.method === 'POST') {
+            const body = getSearchBody(limit, after);
+            response = await axios_1.default.post(`${HubSpotAdapter.base_url}${endpoint.path}`, body, config);
         }
-        const response = await axios_1.default.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
+        else {
+            config.params.limit = limit;
+            if (after) {
+                config.params.after = after;
+            }
+            response = await axios_1.default.get(`${HubSpotAdapter.base_url}${endpoint.path}`, config);
+        }
         log("API Response:", JSON.stringify(response.data, null, 2));
         const { paging, results } = response.data;
         if (!Array.isArray(results)) {

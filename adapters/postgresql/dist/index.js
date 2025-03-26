@@ -67,6 +67,7 @@ const PostgresqlAdapter = {
                     },
                 ]
             },
+            tool: 'database_query',
         },
         {
             id: "custom_query",
@@ -99,6 +100,7 @@ const PostgresqlAdapter = {
                     },
                 ]
             },
+            tool: 'postgresql_create',
         },
     ],
     pagination: {
@@ -119,9 +121,6 @@ function postgresql(connector, auth) {
     function isBasicAuth(auth) {
         return auth.type === 'basic';
     }
-    function isFilter(filter) {
-        return 'field' in filter && 'operator' in filter && 'value' in filter;
-    }
     let pool;
     function buildSelectQuery(customLimit, customOffset) {
         if (endpoint.id === "custom_query") {
@@ -141,10 +140,6 @@ function postgresql(connector, auth) {
         // WHERE clause
         if (connector.filters && connector.filters.length > 0) {
             const whereClauses = connector.filters.map(filter => {
-                if (!isFilter(filter)) {
-                    const subClauses = filter.filters.map(f => isFilter(f) ? `${f.field} ${f.operator} '${f.value}'` : '');
-                    return `(${subClauses.join(` ${filter.op} `)})`;
-                }
                 return `${filter.field} ${filter.operator} '${filter.value}'`;
             });
             parts.push(`WHERE ${whereClauses.join(' AND ')}`);

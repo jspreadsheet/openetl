@@ -108,6 +108,7 @@ export interface BaseAdapter {
 
 export interface Endpoint {
     id: string;
+    tool?: string,
     description?: string;
     supported_actions: Array<"download" | "upload" | "sync">;
     settings?: EndpointSettings;
@@ -138,11 +139,6 @@ export type Filter = {
     field: string;
     operator: string;
     value: string | number;
-};
-
-export type FilterGroup = {
-    op: "AND" | "OR";
-    filters: Array<Filter | FilterGroup>;
 };
 
 export type BaseTransformationOption = {
@@ -245,7 +241,7 @@ export interface Connector {
         [key: string]: any;
     };
     fields: string[];
-    filters?: Array<Filter | FilterGroup>;
+    filters?: Array<Filter>;
     transform?: Transformation[];
     sort?: Sort[];
     limit?: number;                    // Total items to fetch, defaults to 1M in core.ts if unset
@@ -278,7 +274,6 @@ export interface Pipeline<T = object> {
     error_handling?: {
         max_retries: number;
         retry_interval: number;
-        fail_on_error: boolean;
     };
     rate_limiting?: {
         requests_per_second: number;

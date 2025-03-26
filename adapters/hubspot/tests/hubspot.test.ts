@@ -52,7 +52,7 @@ describe('HubSpot Adapter', () => {
     });
 
     it('downloads data with cursor-based pagination', async () => {
-        mockedAxios.get
+        mockedAxios.post
             .mockResolvedValueOnce({
                 status: 200,
                 data: {
@@ -84,7 +84,7 @@ describe('HubSpot Adapter', () => {
     });
 
     it('filters response data to requested fields', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
+        mockedAxios.post.mockResolvedValueOnce({
             status: 200,
             data: {
                 results: [
@@ -120,23 +120,21 @@ describe('HubSpot Adapter', () => {
             },
         };
 
-        // Mock axios.get: 401 error first, then successful response
-        mockedAxios.get
+        // Mock axios.post: 401 error first, then successful response
+        mockedAxios.post
             .mockRejectedValueOnce(unauthorizedError)
+            .mockResolvedValueOnce({
+                status: 200,
+                data: {
+                    access_token: 'new-access-token',
+                    refresh_token: 'new-refresh-token',
+                    expires_in: 3600,
+                },
+            })
             .mockResolvedValueOnce({
                 status: 200,
                 data: { results: [{ properties: { firstname: 'John' } }] },
             });
-
-        // Mock axios.post for token refresh
-        mockedAxios.post.mockResolvedValueOnce({
-            status: 200,
-            data: {
-                access_token: 'new-access-token',
-                refresh_token: 'new-refresh-token',
-                expires_in: 3600,
-            },
-        });
 
         // Execute the download and verify results
         const result = await adapter.download({ limit: 1, offset: 0 });
@@ -146,7 +144,7 @@ describe('HubSpot Adapter', () => {
             expect.objectContaining({ headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
         );
         expect(auth.credentials.access_token).toBe('new-access-token');
-        expect(mockedAxios.get).toHaveBeenCalledTimes(2); // Ensure retry happens
+        expect(mockedAxios.post).toHaveBeenCalledTimes(3); // Ensure retry happens
         expect(result.data).toEqual([{ firstname: 'John' }]);
     });
 
@@ -166,8 +164,8 @@ describe('HubSpot Adapter', () => {
             },
         };
 
-        // Mock axios.get: 429 error first, then successful response
-        mockedAxios.get
+        // Mock axios.post: 429 error first, then successful response
+        mockedAxios.post
             .mockRejectedValueOnce(rateLimitError)
             .mockResolvedValueOnce({
                 status: 200,
@@ -177,7 +175,7 @@ describe('HubSpot Adapter', () => {
         // Start download and verify initial call
         const downloadPromise = adapter.download({ limit: 1, offset: 0 });
         await new Promise(resolve => setImmediate(resolve)); // Flush initial call
-        expect(mockedAxios.get).toHaveBeenCalledTimes(1); // First call (429)
+        expect(mockedAxios.post).toHaveBeenCalledTimes(1); // First call (429)
 
         // Advance timers for retry-after (2 seconds = 2000ms)
         jest.advanceTimersByTime(2000);
@@ -185,7 +183,7 @@ describe('HubSpot Adapter', () => {
         await downloadPromise;
 
         // Verify retry and result
-        expect(mockedAxios.get).toHaveBeenCalledTimes(2); // After retry
+        expect(mockedAxios.post).toHaveBeenCalledTimes(2); // After retry
         const result = await downloadPromise;
         expect(result.data).toEqual([{ firstname: 'John' }]);
     });
@@ -215,16 +213,6 @@ describe('HubSpot Adapter', () => {
                     Authorization: `Bearer ${auth.credentials.access_token}`,
                     'Content-Type': 'application/json',
                 },
-                params: {
-                    properties: 'firstname,lastname,email',
-                    filterGroups: [{
-                        filters: [{
-                            propertyName: 'lifecyclestage',
-                            operator: 'EQ',
-                            value: 'customer',
-                        }],
-                    }],
-                },
             })
         );
     });
@@ -237,26 +225,29 @@ describe('HubSpot Adapter', () => {
     });
 
     it('builds correct query params with filters', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
+        mockedAxios.post.mockResolvedValueOnce({
             status: 200,
             data: { results: [] },
         });
 
         await adapter.download({ limit: 1, offset: 0 });
-        expect(mockedAxios.get).toHaveBeenCalledWith(
+        expect(mockedAxios.post).toHaveBeenCalledWith(
             expect.any(String),
             expect.objectContaining({
-                params: expect.objectContaining({
-                    properties: 'firstname,lastname,email',
-                    filterGroups: [{
-                        filters: [{
-                            propertyName: 'lifecyclestage',
-                            operator: 'EQ',
-                            value: 'customer',
-                        }],
+                properties: 'firstname,lastname,email',
+                filterGroups: [{
+                    filters: [{
+                        propertyName: 'lifecyclestage',
+                        operator: 'EQ',
+                        value: 'customer',
                     }],
-                }),
-            })
+                }],
+            }),
+            expect.objectContaining({
+                headers: expect.objectContaining({
+                    Authorization: "Bearer mock-access-token"
+                })
+            }),
         );
     });
 });

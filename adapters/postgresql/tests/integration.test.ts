@@ -106,7 +106,6 @@ describe('PostgreSQL Adapter integration tests', () => {
       error_handling: {
           max_retries: 3,
           retry_interval: 300,
-          fail_on_error: false,
       },
       rate_limiting: {
           requests_per_second: 1,
