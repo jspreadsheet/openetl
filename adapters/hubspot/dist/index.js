@@ -103,6 +103,7 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Retrieve all contacts from HubSpot",
             supported_actions: ["download", "sync"],
+            tool: 'hubspot_search_contacts',
         },
         {
             id: "create-contact",
@@ -110,6 +111,7 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Create a new contact in HubSpot",
             supported_actions: ["upload"],
+            tool: 'hubspot_create_contacts',
         },
         {
             id: "companies",
@@ -117,6 +119,7 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Retrieve all companies from HubSpot",
             supported_actions: ["download", "sync"],
+            tool: 'hubspot_search_companies',
         },
         {
             id: "create-company",
@@ -124,6 +127,7 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Create a new company in HubSpot",
             supported_actions: ["upload"],
+            tool: 'hubspot_create_companies',
         },
         {
             id: "deals",
@@ -131,6 +135,7 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Retrieve all deals from HubSpot",
             supported_actions: ["download", "sync"],
+            tool: 'hubspot_search_deals',
         },
         {
             id: "create-deal",
@@ -138,6 +143,7 @@ const HubSpotAdapter = {
             method: "POST",
             description: "Create a new deal in HubSpot",
             supported_actions: ["upload"],
+            tool: 'hubspot_create_deals',
         },
         {
             id: "tickets",

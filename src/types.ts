@@ -108,6 +108,7 @@ export interface BaseAdapter {
 
 export interface Endpoint {
     id: string;
+    tool?: string,
     description?: string;
     supported_actions: Array<"download" | "upload" | "sync">;
     settings?: EndpointSettings;

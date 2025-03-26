@@ -67,6 +67,7 @@ const PostgresqlAdapter = {
                     },
                 ]
             },
+            tool: 'database_query',
         },
         {
             id: "custom_query",
@@ -98,6 +99,7 @@ const PostgresqlAdapter = {
                     },
                 ]
             },
+            tool: 'postgresql_create',
         },
     ],
     pagination: {
