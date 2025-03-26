@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "npx webpack --config webpack.config.js",
-    "test": "jest openetl-new/tests",
+    "test": "jest openetl/tests",
     "lint": "eslint src --ext .ts"
   },
   "license": "MIT",
