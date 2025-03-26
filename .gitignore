@@ -5,3 +5,8 @@ node_modules/
 /adapters/postgresql/package-lock.json
 /adapters/postgresql/node_modules/
 /dist/test.js
+/.idea/.gitignore
+/.idea/modules.xml
+/.idea/openetl-new.iml
+/.idea/php.xml
+/.idea/vcs.xml

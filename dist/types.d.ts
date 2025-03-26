@@ -62,6 +62,10 @@ export interface EndpointSettings {
     pagination?: AdapterPagination | false;
     config?: ConfigItem[];
 }
+export type Helpers = {
+    getCode: (redirectUrl: string, client_id: string) => string;
+    getTokens: (redirectUrl: string, client_id: string, secret_id: string, code: string) => object;
+};
 export interface BaseAdapter {
     id: string;
     name: string;
@@ -76,6 +80,7 @@ export interface BaseAdapter {
         [key: string]: any;
     };
     pagination?: AdapterPagination;
+    helpers: Helpers;
 }
 export interface Endpoint {
     id: string;

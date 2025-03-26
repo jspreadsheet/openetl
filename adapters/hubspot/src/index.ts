@@ -14,6 +14,7 @@ import axios, { isAxiosError } from 'axios';
 
 const maxItemsPerPage = 100;
 
+// @ts-ignore
 const HubSpotAdapter: HttpAdapter = {
   id: "hubspot-adapter",
   name: "HubSpot CRM Adapter",
@@ -203,6 +204,41 @@ const HubSpotAdapter: HttpAdapter = {
     //   supported_actions: ["download", "sync"],
     // },
   ],
+  // @ts-ignore
+  helpers: {
+    getCode: function(redirectUrl: string, client_id: string) {
+      let result = `https://app.hubspot.com/oauth/authorize?client_id=${client_id}`;
+      result += `&redirect_uri=${redirectUrl}`;
+      result += '&scope=content%20business-intelligence%20oauth%20crm.objects.owners.read%20forms%20tickets%20crm.objects.contacts.write%20e-commerce%20crm.objects.companies.write%20crm.objects.companies.read%20crm.objects.deals.read%20crm.objects.deals.write%20crm.objects.contacts.read';
+      return result;
+    },
+    getTokens: async function(redirectUrl: string, client_id: string, secret_id: string, code: string) {
+      try {
+          const tokenResponse = await axios({
+              method: 'post',
+              url: 'https://api.hubapi.com/oauth/v1/token',
+              headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded'
+              },
+              data: new URLSearchParams({
+                  grant_type: 'authorization_code',
+                  client_id: client_id,
+                  client_secret: secret_id,
+                  redirect_uri: redirectUrl,
+                  code: code
+              })
+          });
+          return tokenResponse.data;
+      } catch (error) {
+
+          if (isAxiosError(error)) {
+              return error.response?.data.message;
+          } else {
+              return error instanceof Error ? error.message : 'Unknown error';
+          }
+      }
+    }
+  }
 };
 
 async function delay(ms: number): Promise<void> {
@@ -409,21 +445,6 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
         getConfig: () => {
             return HubSpotAdapter;
         },
-
-        getOauthPermissionUrl: (redirectUrl) => {
-            let result = `https://app.hubspot.com/oauth/authorize?client_id=${auth.credentials.client_id}`;
-
-            if (!redirectUrl) {
-                redirectUrl = window.location.href;
-            }
-
-            result += `&redirect_uri=${redirectUrl}`;
-
-            result += '&scope=content%20business-intelligence%20oauth%20crm.objects.owners.read%20forms%20tickets%20crm.objects.contacts.write%20e-commerce%20crm.objects.companies.write%20crm.objects.companies.read%20crm.objects.deals.read%20crm.objects.deals.write%20crm.objects.contacts.read';
-
-            return result;
-        },
-
         download: async function(pageOptions) {
             if (!endpoint.supported_actions.includes('download')) {
                 throw new Error(`${endpoint.id} endpoint don't support download`);
