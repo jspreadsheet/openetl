@@ -73,7 +73,7 @@ export interface BaseAdapter {
     image?: string;
     action: Array<"download" | "upload" | "sync">;
     credential_type: "api_key" | "oauth2" | "basic";
-    config: ConfigItem[];
+    config?: ConfigItem[];
     metadata?: {
         description?: string;
         provider?: string;
