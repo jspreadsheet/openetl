@@ -16,18 +16,6 @@ const StripeAdapter: HttpAdapter = {
 	action: ["download", "upload", "sync"],
 	credential_type: "api_key",
 	base_url: "https://api.stripe.com/v1",
-	config: [
-		{
-			id: 'headers',
-			name: 'headers',
-			required: false,
-		},
-		{
-			id: 'query_params',
-			name: 'query_params',
-			required: false,
-		},
-	],
 	metadata: {
 		provider: "stripe",
 		description: "Adapter for Stripe Payments API",
