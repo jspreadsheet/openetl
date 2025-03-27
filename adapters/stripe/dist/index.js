@@ -58,11 +58,12 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.StripeAdapter = void 0;
+exports.appendObject = appendObject;
 exports.stripe = stripe;
 const axios_1 = __importStar(__webpack_require__(719));
 const maxItemsPerPage = 100;
 const StripeAdapter = {
-    id: "stripe-adapter",
+    id: "stripe",
     name: "Stripe Payments Adapter",
     type: "http",
     action: ["download", "upload", "sync"],
@@ -96,6 +97,7 @@ const StripeAdapter = {
             method: "GET",
             description: "Retrieve all charges from Stripe",
             supported_actions: ["download", "sync"],
+            tool: 'stripe_search_charges',
         },
         {
             id: "create-charge",
@@ -103,6 +105,7 @@ const StripeAdapter = {
             method: "POST",
             description: "Create a new charge in Stripe",
             supported_actions: ["upload"],
+            tool: 'stripe_create_charges',
         },
         {
             id: "customers",
@@ -110,6 +113,7 @@ const StripeAdapter = {
             method: "GET",
             description: "Retrieve all customers from Stripe",
             supported_actions: ["download", "sync"],
+            tool: 'stripe_search_customers',
         },
         {
             id: "create-customer",
@@ -117,6 +121,7 @@ const StripeAdapter = {
             method: "POST",
             description: "Create a new customer in Stripe",
             supported_actions: ["upload"],
+            tool: 'stripe_create_customers',
         },
         {
             id: "invoices",
@@ -166,6 +171,7 @@ const StripeAdapter = {
             method: "GET",
             description: "Retrieve all products from Stripe",
             supported_actions: ["download", "sync"],
+            tool: 'stripe_search_products',
         },
         {
             id: "create-product",
@@ -173,6 +179,7 @@ const StripeAdapter = {
             method: "POST",
             description: "Create a new product in Stripe",
             supported_actions: ["upload"],
+            tool: 'stripe_create_products',
         },
         {
             id: "subscriptions",
@@ -207,6 +214,25 @@ const StripeAdapter = {
 exports.StripeAdapter = StripeAdapter;
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+function appendObject(formData, propertyValue, propertyName) {
+    if (Array.isArray(propertyValue)) {
+        propertyValue.forEach((item, index) => {
+            appendObject(formData, item, propertyName + `[${index}]`);
+        });
+    }
+    else if (typeof propertyValue === "object") {
+        if (propertyValue) {
+            Object.entries(propertyValue).forEach(([key, value]) => {
+                appendObject(formData, value, propertyName + `[${key}]`);
+            });
+        }
+    }
+    else {
+        if (propertyValue !== undefined && propertyValue !== null) {
+            formData.append(propertyName, String(propertyValue));
+        }
+    }
 }
 function stripe(connector, auth) {
     const endpoint = StripeAdapter.endpoints.find(e => e.id === connector.endpoint_id);
@@ -265,8 +291,6 @@ function stripe(connector, auth) {
         if (pageOptions.limit > maxItemsPerPage) {
             throw new Error('Number of items per page exceeds Stripe maximum');
         }
-        console.log('starting a download...');
-        console.log(pageOptions);
         const config = await buildRequestConfig(pageOptions);
         try {
             const response = await axios_1.default.get(`${StripeAdapter.base_url}${endpoint.path}`, config);
@@ -359,7 +383,16 @@ function stripe(connector, auth) {
                 const formData = new URLSearchParams();
                 const item = data[0];
                 Object.entries(item).forEach(([key, value]) => {
-                    formData.append(key, String(value));
+                    const valueType = typeof value;
+                    if (valueType === "object") {
+                        appendObject(formData, value, key);
+                    }
+                    else if (valueType === "string") {
+                        formData.append(key, value);
+                    }
+                    else if (valueType === "number" || valueType === "boolean") {
+                        formData.append(key, String(value));
+                    }
                 });
                 const response = await axios_1.default.post(`${StripeAdapter.base_url}${endpoint.path}`, formData.toString(), {
                     ...config,

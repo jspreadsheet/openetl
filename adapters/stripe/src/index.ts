@@ -10,7 +10,7 @@ import axios, { isAxiosError } from 'axios';
 const maxItemsPerPage = 100;
 
 const StripeAdapter: HttpAdapter = {
-	id: "stripe-adapter",
+	id: "stripe",
 	name: "Stripe Payments Adapter",
 	type: "http",
 	action: ["download", "upload", "sync"],
@@ -44,6 +44,7 @@ const StripeAdapter: HttpAdapter = {
 			method: "GET",
 			description: "Retrieve all charges from Stripe",
 			supported_actions: ["download", "sync"],
+			tool: 'stripe_search_charges',
 		},
 		{
 			id: "create-charge",
@@ -51,6 +52,7 @@ const StripeAdapter: HttpAdapter = {
 			method: "POST",
 			description: "Create a new charge in Stripe",
 			supported_actions: ["upload"],
+			tool: 'stripe_create_charges',
 		},
 		{
 			id: "customers",
@@ -58,6 +60,7 @@ const StripeAdapter: HttpAdapter = {
 			method: "GET",
 			description: "Retrieve all customers from Stripe",
 			supported_actions: ["download", "sync"],
+			tool: 'stripe_search_customers',
 		},
 		{
 			id: "create-customer",
@@ -65,6 +68,7 @@ const StripeAdapter: HttpAdapter = {
 			method: "POST",
 			description: "Create a new customer in Stripe",
 			supported_actions: ["upload"],
+			tool: 'stripe_create_customers',
 		},
 		{
 			id: "invoices",
@@ -114,6 +118,7 @@ const StripeAdapter: HttpAdapter = {
 			method: "GET",
 			description: "Retrieve all products from Stripe",
 			supported_actions: ["download", "sync"],
+			tool: 'stripe_search_products',
 		},
 		{
 			id: "create-product",
@@ -121,6 +126,7 @@ const StripeAdapter: HttpAdapter = {
 			method: "POST",
 			description: "Create a new product in Stripe",
 			supported_actions: ["upload"],
+			tool: 'stripe_create_products',
 		},
 		{
 			id: "subscriptions",
@@ -155,6 +161,28 @@ const StripeAdapter: HttpAdapter = {
 
 async function delay(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function appendObject(
+	formData: URLSearchParams,
+	propertyValue: any,
+	propertyName: string
+) {
+	if (Array.isArray(propertyValue)) {
+		propertyValue.forEach((item, index) => {
+			appendObject(formData, item, propertyName + `[${index}]`);
+		});
+	} else if (typeof propertyValue === "object") {
+		if (propertyValue) {
+			Object.entries(propertyValue).forEach(([key, value]) => {
+				appendObject(formData, value, propertyName + `[${key}]`);
+			});
+		}
+	} else {
+		if (propertyValue !== undefined && propertyValue !== null) {
+			formData.append(propertyName, String(propertyValue));
+		}
+	}
 }
 
 function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
@@ -217,9 +245,6 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 		if (pageOptions.limit > maxItemsPerPage) {
 			throw new Error('Number of items per page exceeds Stripe maximum');
 		}
-
-		console.log('starting a download...')
-		console.log(pageOptions)
 
 		const config = await buildRequestConfig(pageOptions);
 		try {
@@ -319,8 +344,17 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 			try {
 				const formData = new URLSearchParams();
 				const item = data[0];
+
 				Object.entries(item).forEach(([key, value]) => {
-					formData.append(key, String(value));
+					const valueType = typeof value;
+
+					if (valueType === "object") {
+						appendObject(formData, value, key);
+					} else if (valueType === "string") {
+						formData.append(key, value as string);
+					} else if (valueType === "number" || valueType === "boolean") {
+						formData.append(key, String(value));
+					}
 				});
 
 				const response = await axios.post(
