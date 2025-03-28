@@ -65,6 +65,8 @@ const maxItemsPerPage = 100;
 const StripeAdapter = {
     id: "stripe",
     name: "Stripe Payments Adapter",
+    category: 'E-commerce & Payment Platforms',
+    image: 'https://static.cdnlogo.com/logos/s/83/stripe.svg',
     type: "http",
     action: ["download", "upload", "sync"],
     credential_type: "api_key",
@@ -117,6 +119,7 @@ const StripeAdapter = {
             method: "GET",
             description: "Retrieve all invoices from Stripe",
             supported_actions: ["download", "sync"],
+            tool: 'stripe_search_invoices',
         },
         {
             id: "create-invoice",
@@ -124,6 +127,7 @@ const StripeAdapter = {
             method: "POST",
             description: "Create a new invoice in Stripe",
             supported_actions: ["upload"],
+            tool: 'stripe_create_invoices',
         },
         {
             id: "refunds",
