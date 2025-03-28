@@ -30,7 +30,7 @@ const StripeAdapter: HttpAdapter = {
 	endpoints: [
 		{
 			id: "charges",
-			path: "/charges",
+			path: "/charges/search",
 			method: "GET",
 			description: "Retrieve all charges from Stripe",
 			supported_actions: ["download", "sync"],
@@ -46,7 +46,7 @@ const StripeAdapter: HttpAdapter = {
 		},
 		{
 			id: "customers",
-			path: "/customers",
+			path: "/customers/search",
 			method: "GET",
 			description: "Retrieve all customers from Stripe",
 			supported_actions: ["download", "sync"],
@@ -62,7 +62,7 @@ const StripeAdapter: HttpAdapter = {
 		},
 		{
 			id: "invoices",
-			path: "/invoices",
+			path: "/invoices/search",
 			method: "GET",
 			description: "Retrieve all invoices from Stripe",
 			supported_actions: ["download", "sync"],
@@ -92,7 +92,7 @@ const StripeAdapter: HttpAdapter = {
 		},
 		{
 			id: "payment_intents",
-			path: "/payment_intents",
+			path: "/payment_intents/search",
 			method: "GET",
 			description: "Retrieve all payment intents from Stripe",
 			supported_actions: ["download", "sync"],
@@ -106,7 +106,7 @@ const StripeAdapter: HttpAdapter = {
 		},
 		{
 			id: "products",
-			path: "/products",
+			path: "/products/search",
 			method: "GET",
 			description: "Retrieve all products from Stripe",
 			supported_actions: ["download", "sync"],
@@ -122,7 +122,7 @@ const StripeAdapter: HttpAdapter = {
 		},
 		{
 			id: "subscriptions",
-			path: "/subscriptions",
+			path: "/subscriptions/search",
 			method: "GET",
 			description: "Retrieve all subscriptions from Stripe",
 			supported_actions: ["download", "sync"],
@@ -136,7 +136,7 @@ const StripeAdapter: HttpAdapter = {
 		},
 		{
 			id: "prices",
-			path: "/prices",
+			path: "/prices/search",
 			method: "GET",
 			description: "Retrieve all prices from Stripe",
 			supported_actions: ["download", "sync"],
@@ -190,36 +190,66 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 		if (connector.debug) console.log(...args);
 	};
 
-	async function buildRequestConfig(pageOptions?: { limit?: number; offset?: string | number }): Promise<any> {
+	const getRequestHeaders = function() {
+		return {
+			'Authorization': `Bearer ${auth.credentials.api_key}`, // Type-safe after guard
+			...connector.config?.headers,
+			'Stripe-Version': '2020-08-27',
+		}
+	}
+
+	function buildDownloadRequestConfig(pageOptions?: { limit?: number; offset?: string | number }) {
 		if (auth.type !== 'api_key' || !auth.credentials.api_key) {
 			throw new Error("Stripe adapter requires an API key for authentication");
 		}
+
+		let isSearchEndpoint = endpoint!.path.endsWith('/search');
+
 		const params = {
-			...buildQueryParams(),
+			...(isSearchEndpoint ? getSearchQueryParams() : getListQueryParams()),
 			...connector.config?.query_params,
 		};
+
+		if (!params.query) {
+			isSearchEndpoint = false;
+		}
+
 		if (pageOptions?.limit) {
 			params.limit = pageOptions.limit;
 		}
+
 		if (pageOptions?.offset) {
-			if (typeof pageOptions.offset !== 'string' || !pageOptions.offset.match(/^[a-z]{2,}_[A-Za-z0-9]+$/)) {
-				throw new Error(`Invalid offset '${pageOptions.offset}' for Stripe pagination; must be a valid Stripe ID`);
-			}
-			params.starting_after = pageOptions.offset;
+			params[isSearchEndpoint ? 'page' : 'starting_after'] = pageOptions.offset;
 		}
+
 		const config = {
-			headers: {
-				'Authorization': `Bearer ${auth.credentials.api_key}`, // Type-safe after guard
-				...connector.config?.headers,
-			},
+			headers: getRequestHeaders(),
 			params,
 		};
 		log("Request config:", JSON.stringify(config, null, 2));
+
+		return {
+			isSearchEndpoint,
+			config
+		};
+	}
+
+	const buildUploadRequestConfig = function(pageOptions?: { limit?: number; offset?: string | number }){
+		if (auth.type !== 'api_key' || !auth.credentials.api_key) {
+			throw new Error("Stripe adapter requires an API key for authentication");
+		}
+
+		const config = {
+			headers: getRequestHeaders(),
+		};
+		log("Request config:", JSON.stringify(config, null, 2));
+
 		return config;
 	}
 
-	function buildQueryParams(): Record<string, any> {
+	function getListQueryParams(): Record<string, any> {
 		const params: Record<string, any> = {};
+
 		if (connector.filters && connector.filters.length > 0) {
 			connector.filters.forEach(filter => {
 				if ('field' in filter && 'value' in filter) {
@@ -227,7 +257,38 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 				}
 			});
 		}
+
 		return params;
+	}
+
+	function getSearchQueryParams(): Record<string, any> {
+		if (connector.filters && connector.filters.length > 0) {
+			let queries: string[] = [];
+
+			connector.filters.forEach(filter => {
+				if ('field' in filter && 'value' in filter) {
+					const value = typeof filter.value === 'string'
+						? `"${filter.value.replace(/"/g, '\"')}"`
+						: filter.value;
+
+					if (filter.operator === '!=') {
+						queries.push(`-${filter.field}:${value}`);
+					} else {
+						let operator = filter.operator === '=' ? ':' : filter.operator;
+
+						queries.push(filter.field + operator + value);
+					}
+				}
+			});
+
+			if (queries.length > 0) {
+				return {
+					query: queries.join(' AND '),
+				};
+			}
+		}
+
+		return {};
 	}
 
 	const download: AdapterInstance['download'] = async function (pageOptions) {
@@ -238,9 +299,16 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 			throw new Error('Number of items per page exceeds Stripe maximum');
 		}
 
-		const config = await buildRequestConfig(pageOptions);
+		const { config, isSearchEndpoint } = buildDownloadRequestConfig(pageOptions);
+
 		try {
-			const response = await axios.get(`${StripeAdapter.base_url}${endpoint.path}`, config);
+			let url = `${StripeAdapter.base_url}${endpoint.path}`;
+
+			if (url.includes('/search') && !isSearchEndpoint) {
+				url = url.replace('/search', '');
+			}
+
+			const response = await axios.get(url, config);
 			const { data, has_more } = response.data;
 
 			log("API Response:", JSON.stringify(response.data, null, 2));
@@ -263,7 +331,14 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 				: data;
 
 			// Set nextOffset for cursor pagination
-			const nextOffset = has_more && data.length > 0 ? data[data.length - 1].id : undefined;
+			let nextOffset;
+			if (has_more) {
+				if (isSearchEndpoint) {
+					nextOffset = response.data.next_page;
+				} else if (data.length > 0) {
+					nextOffset = data[data.length - 1].id;
+				}
+			}
 
 			return {
 				data: filteredResults,
@@ -275,30 +350,24 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 	};
 
 	const handleDownloadError = (error: any) => {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		let errorMessage;
+
+		if (isAxiosError(error)) {
+			errorMessage = error.response?.data?.error?.message || 'Unknown error';
+		} else {
+			errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		}
+
 		if (error.response && typeof error.response.status === 'number') {
 			console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
 		}
+
 		throw new Error(`Download failed: ${errorMessage}`);
 	};
 
 	return {
 		getConfig: () => {
 			return StripeAdapter;
-		},
-		connect: async function (): Promise<void> {
-			const config = await buildRequestConfig();
-			try {
-				log("Testing connection to Stripe...");
-				await axios.get(`${StripeAdapter.base_url}/charges`, {
-					...config,
-					params: { limit: 1 },
-				});
-				log("Connection successful");
-			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-				throw new Error(`Failed to connect to Stripe: ${errorMessage}`);
-			}
 		},
 
 		download: async function (pageOptions) {
@@ -331,8 +400,7 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 				throw new Error('Stripe adapter only supports uploading one product at a time');
 			}
 
-			const config = await buildRequestConfig();
-			delete config.params;
+			const config = buildUploadRequestConfig();
 			try {
 				const formData = new URLSearchParams();
 				const item = data[0];
@@ -368,10 +436,6 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 				console.error("Upload error:", errorMessage);
 				throw new Error(`Upload failed: ${errorMessage}`);
 			}
-		},
-
-		disconnect: async function (): Promise<void> {
-			log("Disconnecting from Stripe adapter (no-op)");
 		},
 	};
 }
