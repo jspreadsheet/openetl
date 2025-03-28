@@ -66,7 +66,7 @@ exports.hubspot = hubspot;
 const axios_1 = __importStar(__webpack_require__(467));
 const maxItemsPerPage = 100;
 const HubSpotAdapter = {
-    id: "hubspot-adapter",
+    id: "hubspot",
     name: "HubSpot CRM Adapter",
     type: "http",
     category: 'SaaS & CRM Applications',
@@ -74,18 +74,6 @@ const HubSpotAdapter = {
     action: ["download", "upload", "sync"],
     credential_type: "oauth2", // Update to reflect actual usage
     base_url: "https://api.hubapi.com",
-    config: [
-        {
-            id: 'headers',
-            name: 'headers',
-            required: false,
-        },
-        {
-            id: 'query_params',
-            name: 'query_params',
-            required: false,
-        },
-    ],
     metadata: {
         provider: "hubspot",
         description: "Adapter for HubSpot CRM and Marketing APIs",
