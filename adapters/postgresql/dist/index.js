@@ -102,6 +102,23 @@ const PostgresqlAdapter = {
             },
             tool: 'postgresql_create',
         },
+        {
+            id: "table_columns",
+            query_type: "table",
+            description: "Query the columns of a specific table",
+            supported_actions: ["download"],
+            settings: {
+                pagination: false,
+                config: [
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ]
+            },
+            tool: 'postgresql_table_columns',
+        },
     ],
     pagination: {
         type: 'offset',
@@ -122,12 +139,21 @@ function postgresql(connector, auth) {
         return auth.type === 'basic' && typeof auth.credentials === 'object';
     }
     let pool;
-    function buildSelectQuery(customLimit, customOffset) {
-        if (endpoint.id === "custom_query") {
-            if (!connector.config?.custom_query) {
-                throw new Error(`custom_query property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
-            }
-            return connector.config.custom_query;
+    function buildGetColumnsQuery(pageOptions) {
+        if (!connector.config?.table) {
+            throw new Error(`table property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
+        }
+        return `SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = '${connector.config?.schema || schemaDefaultValue}' AND table_name = '${connector.config.table}';`;
+    }
+    function buildCustomQuery(pageOptions) {
+        if (!connector.config?.custom_query) {
+            throw new Error(`custom_query property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
+        }
+        return connector.config.custom_query;
+    }
+    function buildSelectQuery(pageOptions) {
+        if (typeof pageOptions.offset === 'string') {
+            throw new Error('table_query endpoint of the PostgreSQL adapter don\'t accept a string as offset');
         }
         if (!connector.config?.table) {
             throw new Error(`table property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
@@ -152,14 +178,19 @@ function postgresql(connector, auth) {
             parts.push(`ORDER BY ${orderBy}`);
         }
         // LIMIT and OFFSET
-        if (customLimit !== undefined) {
-            parts.push(`LIMIT ${customLimit}`);
-            if (customOffset !== undefined) {
-                parts.push(`OFFSET ${customOffset}`);
+        if (pageOptions.limit !== undefined) {
+            parts.push(`LIMIT ${pageOptions.limit}`);
+            if (pageOptions.offset !== undefined) {
+                parts.push(`OFFSET ${pageOptions.offset}`);
             }
         }
         return parts.join(' ');
     }
+    const queryBuilderMap = {
+        table_query: buildSelectQuery,
+        custom_query: buildCustomQuery,
+        table_columns: buildGetColumnsQuery,
+    };
     function buildInsertQuery(data) {
         if (!connector.config?.table) {
             throw new Error(`table property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
@@ -231,13 +262,11 @@ function postgresql(connector, auth) {
             }
         },
         download: async function (pageOptions) {
-            if (endpoint.id === "table_insert") {
-                throw new Error("Table_insert endpoint only supported for upload");
+            const queryBuilder = queryBuilderMap[endpoint.id];
+            if (!queryBuilder) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
             }
-            if (typeof pageOptions.offset === 'string') {
-                throw new Error('table_query and custom_query endpoints of the PostgreSQL adapter don\'t accept a string as offset');
-            }
-            const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
+            const query = queryBuilder(pageOptions);
             log("Executing query:", query);
             try {
                 if (endpoint.id === "custom_query") {

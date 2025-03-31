@@ -191,7 +191,7 @@ describe('PostgreSQL Adapter', () => {
     const uploadAdapter = postgresql(uploadConnector, auth);
 
     await expect(uploadAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
-      'Table_insert endpoint only supported for upload'
+      'table_insert endpoint don\'t support download'
     );
   });
 
