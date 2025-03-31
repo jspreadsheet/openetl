@@ -37,14 +37,6 @@ const StripeAdapter: HttpAdapter = {
 			tool: 'stripe_search_charges',
 		},
 		{
-			id: "create-charge",
-			path: "/charges",
-			method: "POST",
-			description: "Create a new charge in Stripe",
-			supported_actions: ["upload"],
-			tool: 'stripe_create_charges',
-		},
-		{
 			id: "customers",
 			path: "/customers/search",
 			method: "GET",
@@ -76,34 +68,34 @@ const StripeAdapter: HttpAdapter = {
 			supported_actions: ["upload"],
 			tool: 'stripe_create_invoices',
 		},
-		{
-			id: "refunds",
-			path: "/refunds",
-			method: "GET",
-			description: "Retrieve all refunds from Stripe",
-			supported_actions: ["download", "sync"],
-		},
-		{
-			id: "create-refund",
-			path: "/refunds",
-			method: "POST",
-			description: "Create a new refund in Stripe",
-			supported_actions: ["upload"],
-		},
-		{
-			id: "payment_intents",
-			path: "/payment_intents/search",
-			method: "GET",
-			description: "Retrieve all payment intents from Stripe",
-			supported_actions: ["download", "sync"],
-		},
-		{
-			id: "create-payment-intent",
-			path: "/payment_intents",
-			method: "POST",
-			description: "Create a new payment intent in Stripe",
-			supported_actions: ["upload"],
-		},
+		// {
+		// 	id: "refunds",
+		// 	path: "/refunds",
+		// 	method: "GET",
+		// 	description: "Retrieve all refunds from Stripe",
+		// 	supported_actions: ["download", "sync"],
+		// },
+		// {
+		// 	id: "create-refund",
+		// 	path: "/refunds",
+		// 	method: "POST",
+		// 	description: "Create a new refund in Stripe",
+		// 	supported_actions: ["upload"],
+		// },
+		// {
+		// 	id: "payment_intents",
+		// 	path: "/payment_intents/search",
+		// 	method: "GET",
+		// 	description: "Retrieve all payment intents from Stripe",
+		// 	supported_actions: ["download", "sync"],
+		// },
+		// {
+		// 	id: "create-payment-intent",
+		// 	path: "/payment_intents",
+		// 	method: "POST",
+		// 	description: "Create a new payment intent in Stripe",
+		// 	supported_actions: ["upload"],
+		// },
 		{
 			id: "products",
 			path: "/products/search",
@@ -120,34 +112,34 @@ const StripeAdapter: HttpAdapter = {
 			supported_actions: ["upload"],
 			tool: 'stripe_create_products',
 		},
-		{
-			id: "subscriptions",
-			path: "/subscriptions/search",
-			method: "GET",
-			description: "Retrieve all subscriptions from Stripe",
-			supported_actions: ["download", "sync"],
-		},
-		{
-			id: "create-subscription",
-			path: "/subscriptions",
-			method: "POST",
-			description: "Create a new subscription in Stripe",
-			supported_actions: ["upload"],
-		},
-		{
-			id: "prices",
-			path: "/prices/search",
-			method: "GET",
-			description: "Retrieve all prices from Stripe",
-			supported_actions: ["download", "sync"],
-		},
-		{
-			id: "create-price",
-			path: "/prices",
-			method: "POST",
-			description: "Create a new price in Stripe",
-			supported_actions: ["upload"],
-		},
+		// {
+		// 	id: "subscriptions",
+		// 	path: "/subscriptions/search",
+		// 	method: "GET",
+		// 	description: "Retrieve all subscriptions from Stripe",
+		// 	supported_actions: ["download", "sync"],
+		// },
+		// {
+		// 	id: "create-subscription",
+		// 	path: "/subscriptions",
+		// 	method: "POST",
+		// 	description: "Create a new subscription in Stripe",
+		// 	supported_actions: ["upload"],
+		// },
+		// {
+		// 	id: "prices",
+		// 	path: "/prices/search",
+		// 	method: "GET",
+		// 	description: "Retrieve all prices from Stripe",
+		// 	supported_actions: ["download", "sync"],
+		// },
+		// {
+		// 	id: "create-price",
+		// 	path: "/prices",
+		// 	method: "POST",
+		// 	description: "Create a new price in Stripe",
+		// 	supported_actions: ["upload"],
+		// },
 	],
 };
 
@@ -194,7 +186,7 @@ function stripe(connector: Connector, auth: AuthConfig): AdapterInstance {
 		return {
 			'Authorization': `Bearer ${auth.credentials.api_key}`, // Type-safe after guard
 			...connector.config?.headers,
-			'Stripe-Version': '2020-08-27',
+			'Stripe-Version': '2025-02-24.acacia',
 		}
 	}
 
