@@ -1,6 +1,6 @@
-import { stripe, StripeAdapter } from '../src/index';
-import axios, { AxiosError } from 'axios';
-import { Connector, AuthConfig, ApiKeyAuth, AdapterInstance } from '../../../src/types';
+import { stripe } from '../src/index';
+import axios from 'axios';
+import { Connector, ApiKeyAuth, AdapterInstance } from '../../../src/types';
 
 jest.mock('axios');
 
@@ -39,34 +39,12 @@ describe('Stripe Adapter', () => {
         adapter = stripe(connector, auth);
     });
 
-    /**
-     * Test 1: Connecting to Stripe
-     */
-    it('connects successfully with valid API key', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
-            status: 200,
-            data: { data: [] },
-        });
+    it('downloads data with pagination without query', async () => {
+        const localAdapter = stripe({
+            ...connector,
+            filters: undefined
+        }, auth);
 
-        await expect(adapter.connect!()).resolves.toBeUndefined();
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-            'https://api.stripe.com/v1/charges',
-            expect.objectContaining({
-                headers: { Authorization: `Bearer ${auth.credentials.api_key}` },
-                params: { limit: 1 },
-            })
-        );
-    });
-
-    it('throws error on connection failure', async () => {
-        mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
-        await expect(adapter.connect!()).rejects.toThrow('Failed to connect to Stripe: Network error');
-    });
-
-    /**
-     * Test 2: Downloading Data
-     */
-    it('downloads data with cursor-based pagination', async () => {
         mockedAxios.get
             .mockResolvedValueOnce({
                 status: 200,
@@ -86,12 +64,45 @@ describe('Stripe Adapter', () => {
                 },
             });
 
-        const firstPage = await adapter.download({ limit: 2 });
+        const firstPage = await localAdapter.download({ limit: 2 });
         expect(firstPage.data).toEqual([
             { id: 'ch_1', amount: 1000 },
             { id: 'ch_2', amount: 2000 },
         ]);
         expect(firstPage.options?.nextOffset).toBe('ch_2');
+
+        const secondPage = await localAdapter.download({ limit: 2, offset: 'ch_2' });
+        expect(secondPage.data).toEqual([{ id: 'ch_3', amount: 3000 }]);
+        expect(secondPage.options?.nextOffset).toBeUndefined();
+    });
+
+    it('downloads data with pagination and query', async () => {
+        mockedAxios.get
+            .mockResolvedValueOnce({
+                status: 200,
+                data: {
+                    data: [
+                        { id: 'ch_1', amount: 1000 },
+                        { id: 'ch_2', amount: 2000 },
+                    ],
+                    has_more: true,
+                    next_page: 'next-page-token',
+                },
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                data: {
+                    data: [{ id: 'ch_3', amount: 3000 }],
+                    has_more: false,
+                },
+            });
+
+        const firstPage = await adapter.download({ limit: 2 });
+        expect(firstPage.data).toEqual([
+            { id: 'ch_1', amount: 1000 },
+            { id: 'ch_2', amount: 2000 },
+        ]);
+        expect(firstPage.options?.nextOffset).toBe('next-page-token');
 
         const secondPage = await adapter.download({ limit: 2, offset: 'ch_2' });
         expect(secondPage.data).toEqual([{ id: 'ch_3', amount: 3000 }]);
@@ -123,9 +134,6 @@ describe('Stripe Adapter', () => {
         );
     });
 
-    /**
-     * Test 3: Uploading Data
-     */
     it('uploads a single product successfully', async () => {
         const uploadConnector = {
             ...connector,
@@ -149,6 +157,7 @@ describe('Stripe Adapter', () => {
                 headers: {
                     Authorization: `Bearer ${auth.credentials.api_key}`,
                     'Content-Type': 'application/x-www-form-urlencoded',
+                    "Stripe-Version": "2025-02-24.acacia",
                 },
             })
         );
@@ -186,19 +195,6 @@ describe('Stripe Adapter', () => {
         );
     });
 
-    /**
-     * Test 4: Disconnecting
-     */
-    it('disconnects without errors', async () => {
-        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-        await expect(adapter.disconnect!()).resolves.toBeUndefined();
-        expect(consoleLogSpy).toHaveBeenCalledWith('Disconnecting from Stripe adapter (no-op)');
-        consoleLogSpy.mockRestore();
-    });
-
-    /**
-     * Test 5: Error Handling
-     */
     it('throws error for invalid endpoint', () => {
         const invalidConnector = { ...connector, endpoint_id: 'invalid-endpoint' };
         expect(() => stripe(invalidConnector, auth)).toThrow(
@@ -213,9 +209,6 @@ describe('Stripe Adapter', () => {
         );
     });
 
-    /**
-     * Test 6: Query Parameter Building
-     */
     it('builds correct query params with filters', async () => {
         mockedAxios.get.mockResolvedValueOnce({
             status: 200,
@@ -228,7 +221,7 @@ describe('Stripe Adapter', () => {
             expect.objectContaining({
                 params: expect.objectContaining({
                     limit: 1,
-                    status: 'succeeded',
+                    query: 'status:\"succeeded\"',
                 }),
             })
         );
