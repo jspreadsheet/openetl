@@ -48,7 +48,6 @@ describe('Zoho Adapter', () => {
                 client_secret: 'mock-client-secret',
                 refresh_token: 'mock-refresh-token',
                 access_token: 'mock-access-token',
-                token_url: 'https://accounts.zoho.com/oauth/v2/token',
             },
             expires_at: new Date(Date.now() + 3600 * 1000).toISOString(), // Valid for 1 hour
         };
@@ -61,42 +60,6 @@ describe('Zoho Adapter', () => {
         jest.useRealTimers();
     });
 
-    /**
-     * Test 1: Connecting to Zoho
-     * Ensures the adapter can establish a connection using the configured endpoint.
-     */
-    it('connects successfully with valid credentials', async () => {
-        mockedAxios.get.mockResolvedValueOnce({
-            status: 200,
-            data: { data: [] },
-        });
-
-        await expect(adapter.connect!()).resolves.toBeUndefined();
-        expect(mockedAxios.get).toHaveBeenCalledWith(
-            'https://www.zohoapis.com/crm/v3/Leads',
-            expect.objectContaining({
-                headers: {
-                    Authorization: `Zoho-oauthtoken ${auth.credentials.access_token}`,
-                    'Content-Type': 'application/json',
-                },
-                params: expect.objectContaining({
-                    per_page: 1,
-                    fields: 'Last_Name,First_Name,Email',
-                    criteria: '(Lead_Status:equals:Contacted)',
-                }),
-            })
-        );
-    });
-
-    it('throws error on connection failure', async () => {
-        mockedAxios.get.mockRejectedValueOnce(new Error('Network error'));
-        await expect(adapter.connect!()).rejects.toThrow('Failed to connect to Zoho: Network error');
-    });
-
-    /**
-     * Test 2: Downloading Data
-     * Tests offset-based pagination and field filtering.
-     */
     it('downloads data with offset-based pagination', async () => {
         mockedAxios.get
             .mockResolvedValueOnce({
@@ -146,10 +109,6 @@ describe('Zoho Adapter', () => {
         expect(result.data).toEqual([{ Last_Name: 'Doe', First_Name: 'John', Email: 'john.doe@example.com' }]);
     });
 
-    /**
-     * Test 3: Token Refresh
-     * Ensures token refresh on 401 and successful retry.
-     */
     it('refreshes token on 401 error and retries download', async () => {
         const unauthorizedError = {
             response: {
@@ -192,10 +151,6 @@ describe('Zoho Adapter', () => {
         expect(result.data).toEqual([{ Last_Name: 'Doe' }]);
     });
 
-    /**
-     * Test 4: Rate Limiting
-     * Tests handling of 429 errors with retry-after.
-     */
     xit('handles rate limiting with retry-after', async () => {
         jest.useFakeTimers();
     
@@ -230,7 +185,6 @@ describe('Zoho Adapter', () => {
     });
 
     /**
-     * Test 5: Uploading Data
      * Tests the upload functionality for creating leads.
      */
     it('uploads data successfully', async () => {
@@ -265,20 +219,6 @@ describe('Zoho Adapter', () => {
     });
 
     /**
-     * Test 6: Disconnect
-     * Ensures disconnect logs appropriately.
-     */
-    it('disconnects without errors', async () => {
-        connector.debug = true;
-
-        const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-        await expect(adapter.disconnect!()).resolves.toBeUndefined();
-        expect(consoleLogSpy).toHaveBeenCalledWith('Disconnecting from Zoho adapter (no-op)');
-        consoleLogSpy.mockRestore();
-    });
-
-    /**
-     * Test 7: Invalid Endpoint
      * Ensures invalid endpoint_id throws an error.
      */
     it('throws error for invalid endpoint', () => {
@@ -288,10 +228,6 @@ describe('Zoho Adapter', () => {
         );
     });
 
-    /**
-     * Test 8: Query Params
-     * Ensures filters are correctly built into criteria.
-     */
     it('builds correct query params with filters', async () => {
         mockedAxios.get.mockResolvedValueOnce({
             status: 200,

@@ -73,10 +73,12 @@ const ZohoAdapter = {
     base_url: "https://www.zohoapis.com",
     config: [
         {
+            id: 'headers',
             name: 'headers',
             required: false,
         },
         {
+            id: 'query_params',
             name: 'query_params',
             required: false,
         },
@@ -91,47 +93,103 @@ const ZohoAdapter = {
         maxItemsPerPage,
     },
     endpoints: [
-        { id: "leads", path: "/crm/v3/Leads", method: "GET", description: "Retrieve all leads from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-lead", path: "/crm/v3/Leads", method: "POST", description: "Create a new lead in Zoho CRM", supported_actions: ["upload"] },
-        { id: "accounts", path: "/crm/v3/Accounts", method: "GET", description: "Retrieve all accounts from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-account", path: "/crm/v3/Accounts", method: "POST", description: "Create a new account in Zoho CRM", supported_actions: ["upload"] },
-        { id: "contacts", path: "/crm/v3/Contacts", method: "GET", description: "Retrieve all contacts from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-contact", path: "/crm/v3/Contacts", method: "POST", description: "Create a new contact in Zoho CRM", supported_actions: ["upload"] },
-        { id: "deals", path: "/crm/v3/Deals", method: "GET", description: "Retrieve all deals from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-deal", path: "/crm/v3/Deals", method: "POST", description: "Create a new deal in Zoho CRM", supported_actions: ["upload"] },
-        { id: "campaigns", path: "/crm/v3/Campaigns", method: "GET", description: "Retrieve all campaigns from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-campaign", path: "/crm/v3/Campaigns", method: "POST", description: "Create a new campaign in Zoho CRM", supported_actions: ["upload"] },
-        { id: "tasks", path: "/crm/v3/Tasks", method: "GET", description: "Retrieve all tasks from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-task", path: "/crm/v3/Tasks", method: "POST", description: "Create a new task in Zoho CRM", supported_actions: ["upload"] },
-        { id: "cases", path: "/crm/v3/Cases", method: "GET", description: "Retrieve all cases from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-case", path: "/crm/v3/Cases", method: "POST", description: "Create a new case in Zoho CRM", supported_actions: ["upload"] },
-        { id: "events", path: "/crm/v3/Events", method: "GET", description: "Retrieve all events from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-event", path: "/crm/v3/Events", method: "POST", description: "Create a new event in Zoho CRM", supported_actions: ["upload"] },
-        { id: "calls", path: "/crm/v3/Calls", method: "GET", description: "Retrieve all calls from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-call", path: "/crm/v3/Calls", method: "POST", description: "Create a new call in Zoho CRM", supported_actions: ["upload"] },
-        { id: "solutions", path: "/crm/v3/Solutions", method: "GET", description: "Retrieve all solutions from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-solution", path: "/crm/v3/Solutions", method: "POST", description: "Create a new solution in Zoho CRM", supported_actions: ["upload"] },
-        { id: "products", path: "/crm/v3/Products", method: "GET", description: "Retrieve all products from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-product", path: "/crm/v3/Products", method: "POST", description: "Create a new product in Zoho CRM", supported_actions: ["upload"] },
-        { id: "vendors", path: "/crm/v3/Vendors", method: "GET", description: "Retrieve all vendors from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-vendor", path: "/crm/v3/Vendors", method: "POST", description: "Create a new vendor in Zoho CRM", supported_actions: ["upload"] },
-        { id: "pricebooks", path: "/crm/v3/Price_Books", method: "GET", description: "Retrieve all price books from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-pricebook", path: "/crm/v3/Price_Books", method: "POST", description: "Create a new price book in Zoho CRM", supported_actions: ["upload"] },
-        { id: "quotes", path: "/crm/v3/Quotes", method: "GET", description: "Retrieve all quotes from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-quote", path: "/crm/v3/Quotes", method: "POST", description: "Create a new quote in Zoho CRM", supported_actions: ["upload"] },
-        { id: "salesorders", path: "/crm/v3/Sales_Orders", method: "GET", description: "Retrieve all sales orders from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-salesorder", path: "/crm/v3/Sales_Orders", method: "POST", description: "Create a new sales order in Zoho CRM", supported_actions: ["upload"] },
-        { id: "purchaseorders", path: "/crm/v3/Purchase_Orders", method: "GET", description: "Retrieve all purchase orders from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-purchaseorder", path: "/crm/v3/Purchase_Orders", method: "POST", description: "Create a new purchase order in Zoho CRM", supported_actions: ["upload"] },
-        { id: "invoices", path: "/crm/v3/Invoices", method: "GET", description: "Retrieve all invoices from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-invoice", path: "/crm/v3/Invoices", method: "POST", description: "Create a new invoice in Zoho CRM", supported_actions: ["upload"] },
-        { id: "appointments", path: "/crm/v3/Appointments", method: "GET", description: "Retrieve all appointments from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-appointment", path: "/crm/v3/Appointments", method: "POST", description: "Create a new appointment in Zoho CRM", supported_actions: ["upload"] },
-        { id: "appointments-rescheduled-history", path: "/crm/v3/Appointments__Rescheduled_History", method: "GET", description: "Retrieve appointments rescheduled history from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "services", path: "/crm/v3/Services", method: "GET", description: "Retrieve all services from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "create-service", path: "/crm/v3/Services", method: "POST", description: "Create a new service in Zoho CRM", supported_actions: ["upload"] },
-        { id: "activities", path: "/crm/v3/Activities", method: "GET", description: "Retrieve all activities from Zoho CRM", supported_actions: ["download", "sync"] },
-        { id: "users", path: "/crm/v3/users", method: "GET", description: "Retrieve all users in Zoho CRM", supported_actions: ["download", "sync"] },
+        {
+            id: "leads",
+            path: "/crm/v3/Leads/search",
+            method: "GET",
+            description: "Retrieve all leads from Zoho CRM",
+            supported_actions: ["download", "sync"],
+            tool: "zoho_search_leads",
+        },
+        {
+            id: "create-lead",
+            path: "/crm/v3/Leads",
+            method: "POST",
+            description: "Create a new lead in Zoho CRM",
+            supported_actions: ["upload"],
+            tool: "zoho_create_leads",
+        },
+        // { id: "accounts", path: "/crm/v3/Accounts", method: "GET", description: "Retrieve all accounts from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-account", path: "/crm/v3/Accounts", method: "POST", description: "Create a new account in Zoho CRM", supported_actions: ["upload"] },
+        {
+            id: "contacts",
+            path: "/crm/v3/Contacts/search",
+            method: "GET",
+            description: "Retrieve all contacts from Zoho CRM",
+            supported_actions: ["download", "sync"],
+            tool: "zoho_search_contacts",
+        },
+        {
+            id: "create-contact",
+            path: "/crm/v3/Contacts",
+            method: "POST",
+            description: "Create a new contact in Zoho CRM",
+            supported_actions: ["upload"],
+            tool: "zoho_create_contacts",
+        },
+        {
+            id: "deals",
+            path: "/crm/v3/Deals/search",
+            method: "GET",
+            description: "Retrieve all deals from Zoho CRM",
+            supported_actions: ["download", "sync"],
+            tool: "zoho_search_deals",
+        },
+        {
+            id: "create-deal",
+            path: "/crm/v3/Deals",
+            method: "POST",
+            description: "Create a new deal in Zoho CRM",
+            supported_actions: ["upload"],
+            tool: "zoho_create_deals",
+        },
+        {
+            id: "campaigns",
+            path: "/crm/v3/Campaigns/search",
+            method: "GET",
+            description: "Retrieve all campaigns from Zoho CRM",
+            supported_actions: ["download", "sync"],
+            tool: "zoho_search_campaigns",
+        },
+        {
+            id: "create-campaign",
+            path: "/crm/v3/Campaigns",
+            method: "POST",
+            description: "Create a new campaign in Zoho CRM",
+            supported_actions: ["upload"],
+            tool: "zoho_create_campaigns",
+        },
+        // { id: "tasks", path: "/crm/v3/Tasks", method: "GET", description: "Retrieve all tasks from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-task", path: "/crm/v3/Tasks", method: "POST", description: "Create a new task in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "cases", path: "/crm/v3/Cases", method: "GET", description: "Retrieve all cases from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-case", path: "/crm/v3/Cases", method: "POST", description: "Create a new case in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "events", path: "/crm/v3/Events", method: "GET", description: "Retrieve all events from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-event", path: "/crm/v3/Events", method: "POST", description: "Create a new event in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "calls", path: "/crm/v3/Calls", method: "GET", description: "Retrieve all calls from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-call", path: "/crm/v3/Calls", method: "POST", description: "Create a new call in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "solutions", path: "/crm/v3/Solutions", method: "GET", description: "Retrieve all solutions from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-solution", path: "/crm/v3/Solutions", method: "POST", description: "Create a new solution in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "products", path: "/crm/v3/Products", method: "GET", description: "Retrieve all products from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-product", path: "/crm/v3/Products", method: "POST", description: "Create a new product in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "vendors", path: "/crm/v3/Vendors", method: "GET", description: "Retrieve all vendors from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-vendor", path: "/crm/v3/Vendors", method: "POST", description: "Create a new vendor in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "pricebooks", path: "/crm/v3/Price_Books", method: "GET", description: "Retrieve all price books from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-pricebook", path: "/crm/v3/Price_Books", method: "POST", description: "Create a new price book in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "quotes", path: "/crm/v3/Quotes", method: "GET", description: "Retrieve all quotes from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-quote", path: "/crm/v3/Quotes", method: "POST", description: "Create a new quote in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "salesorders", path: "/crm/v3/Sales_Orders", method: "GET", description: "Retrieve all sales orders from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-salesorder", path: "/crm/v3/Sales_Orders", method: "POST", description: "Create a new sales order in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "purchaseorders", path: "/crm/v3/Purchase_Orders", method: "GET", description: "Retrieve all purchase orders from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-purchaseorder", path: "/crm/v3/Purchase_Orders", method: "POST", description: "Create a new purchase order in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "invoices", path: "/crm/v3/Invoices", method: "GET", description: "Retrieve all invoices from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-invoice", path: "/crm/v3/Invoices", method: "POST", description: "Create a new invoice in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "appointments", path: "/crm/v3/Appointments", method: "GET", description: "Retrieve all appointments from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-appointment", path: "/crm/v3/Appointments", method: "POST", description: "Create a new appointment in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "appointments-rescheduled-history", path: "/crm/v3/Appointments__Rescheduled_History", method: "GET", description: "Retrieve appointments rescheduled history from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "services", path: "/crm/v3/Services", method: "GET", description: "Retrieve all services from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "create-service", path: "/crm/v3/Services", method: "POST", description: "Create a new service in Zoho CRM", supported_actions: ["upload"] },
+        // { id: "activities", path: "/crm/v3/Activities", method: "GET", description: "Retrieve all activities from Zoho CRM", supported_actions: ["download", "sync"] },
+        // { id: "users", path: "/crm/v3/users", method: "GET", description: "Retrieve all users in Zoho CRM", supported_actions: ["download", "sync"] },
     ],
 };
 exports.ZohoAdapter = ZohoAdapter;
@@ -160,7 +218,7 @@ function zoho(connector, auth) {
         }
         log("Refreshing OAuth token...");
         try {
-            const response = await axios_1.default.post(auth.credentials.token_url || 'https://accounts.zoho.com/oauth/v2/token', new URLSearchParams({
+            const response = await axios_1.default.post('https://accounts.zoho.com/oauth/v2/token', new URLSearchParams({
                 grant_type: 'refresh_token',
                 client_id: auth.credentials.client_id,
                 client_secret: auth.credentials.client_secret,
@@ -181,7 +239,7 @@ function zoho(connector, auth) {
         if (!isOAuth2Auth(auth)) {
             throw new Error("Zoho adapter requires OAuth2 authentication");
         }
-        if (!auth.credentials.access_token || (auth.expires_at && new Date(auth.expires_at) < new Date())) {
+        if (!auth.credentials.access_token || !auth.expires_at || new Date(auth.expires_at) < new Date()) {
             await refreshOAuthToken();
         }
         return {
@@ -203,14 +261,6 @@ function zoho(connector, auth) {
         if (connector.filters && connector.filters.length > 0) {
             // Zoho uses a different filtering approach with criteria
             params.criteria = connector.filters.map(filter => {
-                if ('op' in filter) {
-                    return filter.filters.map((f) => {
-                        if ('field' in f && 'operator' in f && 'value' in f) {
-                            return `(${f.field}:${mapOperator(f.operator)}:${f.value})`;
-                        }
-                        return '';
-                    });
-                }
                 return `(${filter.field}:${mapOperator(filter.operator)}:${filter.value})`;
             }).join(' and ');
         }
@@ -250,7 +300,11 @@ function zoho(connector, auth) {
         if (page) {
             config.params.page = page;
         }
-        const response = await axios_1.default.get(`${ZohoAdapter.base_url}${endpoint.path}`, config);
+        let url = ZohoAdapter.base_url + endpoint.path;
+        if (!config.params.criteria && url.endsWith('/search')) {
+            url = url.replace(/\/search$/, '');
+        }
+        const response = await axios_1.default.get(url, config);
         const { data, info } = response.data;
         if (!Array.isArray(data)) {
             console.warn("Data is not an array or is undefined:", response.data);
@@ -275,37 +329,21 @@ function zoho(connector, auth) {
         };
     };
     const handleDownloadError = (error) => {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        if (error.response && typeof error.response.status === 'number') {
-            console.error("Download error response:", JSON.stringify(error.response.data, null, 2));
+        let errorMessage;
+        if ((0, axios_1.isAxiosError)(error) && error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+            if (errorMessage === 'One of the expected parameter is missing') {
+                errorMessage += ': ' + error.response.data.details.param_name;
+            }
         }
-        throw new Error(`Download failed: ${errorMessage}`);
+        else {
+            errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        }
+        return new Error(`Download failed: ${errorMessage}`);
     };
     return {
         getConfig: () => {
             return ZohoAdapter;
-        },
-        connect: async function () {
-            const config = await buildRequestConfig();
-            try {
-                log("Testing connection to Zoho...");
-                const testPath = endpoint.method === "GET"
-                    ? endpoint.path
-                    : endpoint.path; // For POST endpoints, we still use the same path but with GET
-                const testConfig = {
-                    ...config,
-                    params: { per_page: 1, ...config.params }, // Minimal request
-                };
-                if (endpoint.method === "POST") {
-                    log(`Endpoint ${endpoint.id} is POST-only; attempting read-only test on ${testPath}`);
-                }
-                await axios_1.default.get(`${ZohoAdapter.base_url}${testPath}`, testConfig);
-                log("Connection successful");
-            }
-            catch (error) {
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                throw new Error(`Failed to connect to Zoho: ${errorMessage}`);
-            }
         },
         download: async function (pageOptions) {
             if (!endpoint.supported_actions.includes('download')) {
@@ -340,15 +378,22 @@ function zoho(connector, auth) {
                 await axios_1.default.post(`${ZohoAdapter.base_url}${endpoint.path}`, { data }, config);
             }
             catch (error) {
-                const errorMessage = (0, axios_1.isAxiosError)(error) && error.response?.data?.message
-                    ? error.response.data.message
-                    : error instanceof Error ? error.message : 'Unknown error';
+                let errorMessage;
+                if ((0, axios_1.isAxiosError)(error) &&
+                    error.response?.data?.data &&
+                    error.response?.data?.data[0] &&
+                    error.response?.data?.data[0].message) {
+                    errorMessage = error.response.data.data[0].message;
+                    if (errorMessage === 'required field not found') {
+                        errorMessage += ': ' + error.response.data.data[0].details.api_name;
+                    }
+                }
+                else {
+                    errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                }
                 console.error("Upload error:", errorMessage);
                 throw new Error(`Upload failed: ${errorMessage}`);
             }
-        },
-        disconnect: async function () {
-            log("Disconnecting from Zoho adapter (no-op)");
         },
     };
 }
