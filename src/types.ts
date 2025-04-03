@@ -91,7 +91,7 @@ export interface EndpointSettings {
 
 export type Helpers = {
     getCode: (redirectUrl: string, client_id: string) => string;
-    getTokens: (redirectUrl: string, client_id: string, secret_id: string, code: string) => object;
+    getTokens: (redirectUrl: string, client_id: string, secret_id: string, queryParams: string) => object;
 }
 
 // Adapter Types
