@@ -64,8 +64,19 @@ exports.ZohoAdapter = void 0;
 exports.zoho = zoho;
 const axios_1 = __importStar(__webpack_require__(719));
 const maxItemsPerPage = 100;
+const appLocationMap = {
+    "eu": "https://accounts.zoho.eu",
+    "ae": "https://accounts.zoho.ae",
+    "au": "https://accounts.zoho.com.au",
+    "in": "https://accounts.zoho.in",
+    "jp": "https://accounts.zoho.jp",
+    "uk": "https://accounts.zoho.uk",
+    "us": "https://accounts.zoho.com",
+    "ca": "https://accounts.zohocloud.ca",
+    "sa": "https://accounts.zoho.sa",
+};
 const ZohoAdapter = {
-    id: "zoho-adapter",
+    id: "zoho",
     name: "Zoho CRM Adapter",
     type: "http",
     action: ["download", "upload", "sync"],
@@ -86,7 +97,7 @@ const ZohoAdapter = {
     metadata: {
         provider: "zoho",
         description: "Adapter for Zoho CRM API",
-        version: "v3", // Using Zoho CRM API v3 as of March 2025
+        version: "v7",
     },
     pagination: {
         type: 'cursor',
@@ -95,7 +106,7 @@ const ZohoAdapter = {
     endpoints: [
         {
             id: "leads",
-            path: "/crm/v3/Leads/search",
+            path: "/crm/v7/Leads/search",
             method: "GET",
             description: "Retrieve all leads from Zoho CRM",
             supported_actions: ["download", "sync"],
@@ -103,7 +114,7 @@ const ZohoAdapter = {
         },
         {
             id: "create-lead",
-            path: "/crm/v3/Leads",
+            path: "/crm/v7/Leads",
             method: "POST",
             description: "Create a new lead in Zoho CRM",
             supported_actions: ["upload"],
@@ -113,7 +124,7 @@ const ZohoAdapter = {
         // { id: "create-account", path: "/crm/v3/Accounts", method: "POST", description: "Create a new account in Zoho CRM", supported_actions: ["upload"] },
         {
             id: "contacts",
-            path: "/crm/v3/Contacts/search",
+            path: "/crm/v7/Contacts/search",
             method: "GET",
             description: "Retrieve all contacts from Zoho CRM",
             supported_actions: ["download", "sync"],
@@ -121,7 +132,7 @@ const ZohoAdapter = {
         },
         {
             id: "create-contact",
-            path: "/crm/v3/Contacts",
+            path: "/crm/v7/Contacts",
             method: "POST",
             description: "Create a new contact in Zoho CRM",
             supported_actions: ["upload"],
@@ -129,7 +140,7 @@ const ZohoAdapter = {
         },
         {
             id: "deals",
-            path: "/crm/v3/Deals/search",
+            path: "/crm/v7/Deals/search",
             method: "GET",
             description: "Retrieve all deals from Zoho CRM",
             supported_actions: ["download", "sync"],
@@ -137,7 +148,7 @@ const ZohoAdapter = {
         },
         {
             id: "create-deal",
-            path: "/crm/v3/Deals",
+            path: "/crm/v7/Deals",
             method: "POST",
             description: "Create a new deal in Zoho CRM",
             supported_actions: ["upload"],
@@ -145,7 +156,7 @@ const ZohoAdapter = {
         },
         {
             id: "campaigns",
-            path: "/crm/v3/Campaigns/search",
+            path: "/crm/v7/Campaigns/search",
             method: "GET",
             description: "Retrieve all campaigns from Zoho CRM",
             supported_actions: ["download", "sync"],
@@ -153,7 +164,7 @@ const ZohoAdapter = {
         },
         {
             id: "create-campaign",
-            path: "/crm/v3/Campaigns",
+            path: "/crm/v7/Campaigns",
             method: "POST",
             description: "Create a new campaign in Zoho CRM",
             supported_actions: ["upload"],
@@ -191,6 +202,54 @@ const ZohoAdapter = {
         // { id: "activities", path: "/crm/v3/Activities", method: "GET", description: "Retrieve all activities from Zoho CRM", supported_actions: ["download", "sync"] },
         // { id: "users", path: "/crm/v3/users", method: "GET", description: "Retrieve all users in Zoho CRM", supported_actions: ["download", "sync"] },
     ],
+    helpers: {
+        getCode: function (redirectUrl, client_id) {
+            const searchParams = new URLSearchParams({
+                client_id: client_id,
+                redirect_uri: redirectUrl,
+                response_type: 'code',
+                scope: 'ZohoSearch.securesearch.READ,ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.leads.ALL,ZohoCRM.modules.deals.ALL,ZohoCRM.modules.campaigns.ALL,ZohoCRM.settings.fields.READ,ZohoCRM.settings.custom_views.READ',
+                access_type: 'offline',
+            });
+            return `https://accounts.zoho.com/oauth/v2/auth?` + searchParams.toString();
+        },
+        getTokens: async function (redirectUrl, client_id, secret_id, queryParams) {
+            const params = new URLSearchParams(queryParams);
+            const code = params.get('code');
+            const location = params.get('location');
+            if (!code) {
+                throw new Error('Invalid code');
+            }
+            if (!location) {
+                throw new Error('Invalid location');
+            }
+            let url = appLocationMap[location];
+            if (!url) {
+                throw new Error('Invalid location');
+            }
+            url += '/oauth/v2/token';
+            try {
+                const tokenResponse = await axios_1.default.post(url, undefined, {
+                    params: {
+                        client_id: client_id,
+                        grant_type: 'authorization_code',
+                        client_secret: secret_id,
+                        redirect_uri: redirectUrl,
+                        code: code
+                    }
+                });
+                return tokenResponse.data;
+            }
+            catch (error) {
+                if ((0, axios_1.isAxiosError)(error)) {
+                    return error.response?.data.message;
+                }
+                else {
+                    return error instanceof Error ? error.message : 'Unknown error';
+                }
+            }
+        }
+    }
 };
 exports.ZohoAdapter = ZohoAdapter;
 async function delay(ms) {

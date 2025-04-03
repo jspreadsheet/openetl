@@ -198,7 +198,14 @@ const HubSpotAdapter: HttpAdapter = {
       result += '&scope=content%20business-intelligence%20oauth%20crm.objects.owners.read%20forms%20tickets%20crm.objects.contacts.write%20e-commerce%20crm.objects.companies.write%20crm.objects.companies.read%20crm.objects.deals.read%20crm.objects.deals.write%20crm.objects.contacts.read';
       return result;
     },
-    getTokens: async function(redirectUrl: string, client_id: string, secret_id: string, code: string) {
+    getTokens: async function(redirectUrl: string, client_id: string, secret_id: string, queryParams: string) {
+      const params = new URLSearchParams(queryParams);
+      const code = params.get('code');
+
+      if (!code) {
+        throw new Error('Invalid authentication');
+      }
+
       try {
           const tokenResponse = await axios({
               method: 'post',
