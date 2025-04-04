@@ -10,7 +10,8 @@
 import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
-const maxItemsPerPage = 100;
+const maxItemsPerPageforGetRoutes = 200;
+const maxItemsPerPageforPostRoutes = 100;
 
 const appLocationMap: Record<string, string | undefined> = {
     "eu": "https://accounts.zoho.eu",
@@ -50,14 +51,14 @@ const ZohoAdapter: HttpAdapter = {
     },
     pagination: {
         type: 'cursor',
-        maxItemsPerPage,
+        maxItemsPerPage: maxItemsPerPageforGetRoutes,
     },
     endpoints: [
         {
             id: "leads",
             path: "/crm/v7/Leads/search",
             method: "GET",
-            description: "Retrieve all leads from Zoho CRM",
+            description: "Retrieve leads from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_leads",
         },
@@ -65,9 +66,15 @@ const ZohoAdapter: HttpAdapter = {
             id: "create-lead",
             path: "/crm/v7/Leads",
             method: "POST",
-            description: "Create a new lead in Zoho CRM",
+            description: "Create new leads in Zoho CRM",
             supported_actions: ["upload"],
             tool: "zoho_create_leads",
+            settings: {
+                pagination: {
+                    type: 'offset',
+                    maxItemsPerPage: maxItemsPerPageforPostRoutes,
+                }
+            }
         },
         // { id: "accounts", path: "/crm/v3/Accounts", method: "GET", description: "Retrieve all accounts from Zoho CRM", supported_actions: ["download", "sync"] },
         // { id: "create-account", path: "/crm/v3/Accounts", method: "POST", description: "Create a new account in Zoho CRM", supported_actions: ["upload"] },
@@ -75,7 +82,7 @@ const ZohoAdapter: HttpAdapter = {
             id: "contacts",
             path: "/crm/v7/Contacts/search",
             method: "GET",
-            description: "Retrieve all contacts from Zoho CRM",
+            description: "Retrieve contacts from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_contacts",
         },
@@ -83,15 +90,21 @@ const ZohoAdapter: HttpAdapter = {
             id: "create-contact",
             path: "/crm/v7/Contacts",
             method: "POST",
-            description: "Create a new contact in Zoho CRM",
+            description: "Create new contacts in Zoho CRM",
             supported_actions: ["upload"],
             tool: "zoho_create_contacts",
+            settings: {
+                pagination: {
+                    type: 'offset',
+                    maxItemsPerPage: maxItemsPerPageforPostRoutes,
+                }
+            }
         },
         {
             id: "deals",
             path: "/crm/v7/Deals/search",
             method: "GET",
-            description: "Retrieve all deals from Zoho CRM",
+            description: "Retrieve deals from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_deals",
         },
@@ -99,15 +112,21 @@ const ZohoAdapter: HttpAdapter = {
             id: "create-deal",
             path: "/crm/v7/Deals",
             method: "POST",
-            description: "Create a new deal in Zoho CRM",
+            description: "Create new deals in Zoho CRM",
             supported_actions: ["upload"],
             tool: "zoho_create_deals",
+            settings: {
+                pagination: {
+                    type: 'offset',
+                    maxItemsPerPage: maxItemsPerPageforPostRoutes,
+                }
+            }
         },
         {
             id: "campaigns",
             path: "/crm/v7/Campaigns/search",
             method: "GET",
-            description: "Retrieve all campaigns from Zoho CRM",
+            description: "Retrieve campaigns from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_campaigns",
         },
@@ -115,9 +134,15 @@ const ZohoAdapter: HttpAdapter = {
             id: "create-campaign",
             path: "/crm/v7/Campaigns",
             method: "POST",
-            description: "Create a new campaign in Zoho CRM",
+            description: "Create new campaigns in Zoho CRM",
             supported_actions: ["upload"],
             tool: "zoho_create_campaigns",
+            settings: {
+                pagination: {
+                    type: 'offset',
+                    maxItemsPerPage: maxItemsPerPageforPostRoutes,
+                }
+            }
         },
         // { id: "tasks", path: "/crm/v3/Tasks", method: "GET", description: "Retrieve all tasks from Zoho CRM", supported_actions: ["download", "sync"] },
         // { id: "create-task", path: "/crm/v3/Tasks", method: "POST", description: "Create a new task in Zoho CRM", supported_actions: ["upload"] },
@@ -310,8 +335,6 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         return operatorMap[operator] || operator;
     }
 
-    const maxItemsPerPage = 200; // Zoho's max page size
-
     const download: AdapterInstance['download'] = async function (pageOptions) {
         const config = await buildRequestConfig();
         const { limit, offset } = pageOptions;
@@ -319,9 +342,8 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         if (typeof limit === 'undefined') {
             throw new Error('Number of items per page is required by the Zoho adapter');
         }
-
-        if (limit > maxItemsPerPage) {
-            throw new Error('Number of items per page exceeds Zoho maximum');
+        if (limit > maxItemsPerPageforGetRoutes) {
+            throw new Error(`Number of items per page exceeds the maximum number allowed for the ${endpoint.id} endpoint of the Zoho adapter (${maxItemsPerPageforGetRoutes})`);
         }
 
         config.params.per_page = limit;
@@ -411,6 +433,10 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         upload: async function (data: any[]): Promise<void> {
             if (!endpoint.supported_actions.includes('upload')) {
                 throw new Error(`${endpoint.id} endpoint don't support upload`);
+            }
+
+            if (data.length > maxItemsPerPageforPostRoutes) {
+                throw new Error(`Number of items per page (${data.length}), exceeds the maximum number allowed for the ${endpoint.id} endpoint of the Zoho adapter (${maxItemsPerPageforPostRoutes})`);
             }
 
             log('inside upload..')
