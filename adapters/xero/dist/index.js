@@ -178,6 +178,7 @@ exports.XeroAdapter = XeroAdapter;
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+const filtersOutsideTheWhereParam = ['includeArchived', 'searchTerm'];
 function xero(connector, auth) {
     const log = function (...args) {
         if (connector.debug) {
@@ -271,8 +272,7 @@ function xero(connector, auth) {
         }
         return targetConnection.tenantId;
     };
-    function getQueryParams(limit, offset) {
-        const params = {};
+    function setDownloadEndpointConfig(limit, offset, config) {
         if (endpoint.settings?.pagination) {
             if (typeof limit === 'undefined') {
                 throw new Error('Number of items per page is required by the Xero adapter');
@@ -283,18 +283,37 @@ function xero(connector, auth) {
             if (typeof offset === 'string') {
                 throw new Error('Download endpoints of the Xero adapter don\'t accept a string as offset');
             }
-            params.page = Math.floor((Number(offset || 0) / limit) + 1);
-            params.pageSize = limit;
+            config.params.page = Math.floor((Number(offset || 0) / limit) + 1);
+            config.params.pageSize = limit;
         }
         if (connector.filters && connector.filters.length > 0) {
-            params.where = connector.filters.map(f => `${f.field}${f.operator === '=' ? '==' : f.operator}'${f.value}'`).join(' AND ');
+            const filters = connector.filters;
+            const where = [];
+            for (let filterIndex = 0; filterIndex < filters.length; filterIndex++) {
+                const filter = filters[filterIndex];
+                if (filtersOutsideTheWhereParam.includes(filter.field)) {
+                    if (filter.operator === '=') {
+                        config.params[filter.field] = filter.value;
+                    }
+                }
+                else if (filter.field === 'Modified After') {
+                    if (filter.operator === '=') {
+                        config.headers['If-Modified-Since'] = filter.value;
+                    }
+                }
+                else {
+                    where.push(`${filter.field}${filter.operator}'${filter.value}'`);
+                }
+            }
+            if (where.length !== 0) {
+                config.params.where = where.join(' AND ');
+            }
         }
-        return params;
     }
     const download = async function (pageOptions) {
         const config = await buildRequestConfig();
         const { limit, offset } = pageOptions;
-        config.params = { ...config.params, ...getQueryParams(limit, offset) };
+        setDownloadEndpointConfig(limit, offset, config);
         const response = await axios_1.default.get(`${XeroAdapter.base_url}${endpoint.path}`, config);
         log("API Response:", JSON.stringify(response.data, null, 2));
         const results = response.data[endpoint.path.split('/')[1]] || [];
