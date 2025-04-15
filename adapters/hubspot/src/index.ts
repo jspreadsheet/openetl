@@ -41,6 +41,14 @@ const HubSpotAdapter: HttpAdapter = {
       description: "Retrieve all contacts from HubSpot",
       supported_actions: ["download", "sync"],
       tool: 'hubspot_search_contacts',
+      defaultFields: [
+        'hs_object_id',
+        'email',
+        'firstname',
+        'lastname',
+        'createdate',
+        'lastmodifieddate',
+    ],
     },
     {
       id: "create-contact",
@@ -57,6 +65,13 @@ const HubSpotAdapter: HttpAdapter = {
       description: "Retrieve all companies from HubSpot",
       supported_actions: ["download", "sync"],
       tool: 'hubspot_search_companies',
+      defaultFields: [
+        'hs_object_id',
+        'name',
+        'domain',
+        'createdate',
+        'hs_lastmodifieddate',
+      ]
     },
     {
       id: "create-company",
@@ -73,6 +88,15 @@ const HubSpotAdapter: HttpAdapter = {
       description: "Retrieve all deals from HubSpot",
       supported_actions: ["download", "sync"],
       tool: 'hubspot_search_deals',
+      defaultFields: [
+        'hs_object_id',
+        'dealname',
+        'amount',
+        'dealstage',
+        'closedate',
+        'createdate',
+        'hs_lastmodifieddate',
+      ],
     },
     {
       id: "create-deal",
@@ -88,6 +112,17 @@ const HubSpotAdapter: HttpAdapter = {
       method: "POST",
       description: "Retrieve all support tickets from HubSpot",
       supported_actions: ["download", "sync"],
+      defaultFields: [
+        'hs_object_id',
+        'subject',
+        'content',
+        'hs_pipeline',
+        'hs_pipeline_stage',
+        'hs_ticket_category',
+        'hs_ticket_priority',
+        'createdate',
+        'hs_lastmodifieddate',
+      ],
     },
     {
       id: "create-ticket",
@@ -102,6 +137,14 @@ const HubSpotAdapter: HttpAdapter = {
       method: "POST",
       description: "Retrieve all products from HubSpot",
       supported_actions: ["download", "sync"],
+      defaultFields: [
+        'hs_object_id',
+        'name',
+        'description',
+        'price',
+        'createdate',
+        'hs_lastmodifieddate',
+      ],
     },
     {
       id: "create-product",
@@ -322,7 +365,7 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
             body.after = after;
         }
 
-        if (connector.fields.length > 0) body.properties = connector.fields.join(',');
+        if (connector.fields.length > 0) body.properties = connector.fields;
 
         if (connector.filters && connector.filters.length > 0) {
             body.filterGroups = [{

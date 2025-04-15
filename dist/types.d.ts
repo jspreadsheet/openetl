@@ -92,6 +92,7 @@ export interface Endpoint {
 export interface HttpEndpoint extends Endpoint {
     path: string;
     method: "GET" | "POST" | "PUT" | "DELETE";
+    defaultFields?: string[];
 }
 export interface HttpAdapter extends BaseAdapter {
     type: "http";

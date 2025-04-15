@@ -93,24 +93,33 @@ interface PipelineWithSource<T = object> extends Pipeline<T> {
     source: Connector;
 }
 
-function getPaginationFromEndpoint (
+function getEndpoint (
     connector: Connector,
     adapter: AdapterInstance,
-    itemsPerPage: number | undefined,
-    log: (event: PipelineEvent) => void,
 ) {
     const adapterConfig = adapter.getConfig();
-
-    let paginationConfig: AdapterPagination | false | undefined;
 
     const { endpoints } = adapterConfig;
 
     const { endpoint_id: endpointId } = connector;
 
     const endpoint = endpoints.find(e => e.id === endpointId);
+
+    return endpoint;
+}
+
+function getPaginationFromEndpoint (
+    connector: Connector,
+    adapter: AdapterInstance,
+    itemsPerPage: number | undefined,
+    log: (event: PipelineEvent) => void,
+) {
+    const endpoint = getEndpoint(connector, adapter);
     if (!endpoint) {
-        throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
+        throw new Error(`Endpoint ${connector.endpoint_id} not found in adapter ${connector.adapter_id}`);
     }
+
+    let paginationConfig: AdapterPagination | false | undefined;
 
     const pagination = endpoint.settings?.pagination;
 
@@ -119,6 +128,8 @@ function getPaginationFromEndpoint (
     }
 
     if (typeof paginationConfig === "undefined") {
+        const adapterConfig = adapter.getConfig();
+
         paginationConfig = adapterConfig.pagination || false;
     }
 
@@ -178,6 +189,21 @@ async function getDataSerially<T>(
     const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
     const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
     const downloadStartTime = Date.now();
+
+    const endpoint = getEndpoint(pipeline.source, sourceAdapter);
+    if (!endpoint) {
+        const { endpoint_id, adapter_id } = pipeline.source;
+
+        throw new Error(`Endpoint ${endpoint_id} not found in adapter ${adapter_id}`);
+    }
+
+    if (
+        pipeline.source.fields.length === 0 &&
+        'defaultFields' in endpoint &&
+        endpoint.defaultFields
+    ) {
+        pipeline.source.fields = [...endpoint.defaultFields];
+    }
 
     let {
         itemsPerPage,
