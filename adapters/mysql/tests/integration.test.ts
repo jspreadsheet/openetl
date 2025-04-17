@@ -78,7 +78,7 @@ describe('MySQL Adapter Integration Tests', () => {
     pipeline = {
       id: 'test-download',
       source: connector,
-      error_handling: { max_retries: 3, retry_interval: 300, fail_on_error: false },
+      error_handling: { max_retries: 3, retry_interval: 300, },
       rate_limiting: { requests_per_second: 1, max_retries_on_rate_limit: 3 },
     };
   });

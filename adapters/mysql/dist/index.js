@@ -22281,22 +22281,10 @@ const promise_1 = __importDefault(__webpack_require__(3195));
 const MySQLAdapter = {
     id: "mysql",
     name: "MySQL Database Adapter",
+    category: 'Databases & Data Warehouses',
+    image: "https://static.cdnlogo.com/logos/m/10/mysql.svg",
     type: "database",
     action: ["download", "upload", "sync"],
-    config: [
-        {
-            name: 'database',
-            required: true,
-        },
-        {
-            name: 'table',
-            required: true,
-        },
-        {
-            name: 'custom_query',
-            required: false,
-        },
-    ],
     credential_type: "basic",
     metadata: {
         provider: "mysql",
@@ -22304,7 +22292,27 @@ const MySQLAdapter = {
         version: "1.0",
     },
     endpoints: [
-        { id: "table_query", query_type: "table", description: "Query a specific table", supported_actions: ["download", "sync"] },
+        {
+            id: "table_query",
+            query_type: "table",
+            description: "Query a specific table",
+            supported_actions: ["download", "sync"],
+            settings: {
+                config: [
+                    {
+                        id: 'database',
+                        name: 'database',
+                        required: true,
+                    },
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ]
+            },
+            tool: 'database_query',
+        },
         {
             id: "custom_query",
             query_type: "custom",
@@ -22312,9 +22320,36 @@ const MySQLAdapter = {
             supported_actions: ["download"],
             settings: {
                 pagination: false,
+                config: [
+                    {
+                        id: 'custom_query',
+                        name: 'custom_query',
+                        required: true,
+                    }
+                ]
             }
         },
-        { id: "table_insert", query_type: "table", description: "Insert into a specific table", supported_actions: ["upload"] },
+        {
+            id: "table_insert",
+            query_type: "table",
+            description: "Insert into a specific table",
+            supported_actions: ["upload"],
+            settings: {
+                config: [
+                    {
+                        id: 'database',
+                        name: 'database',
+                        required: true,
+                    },
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ],
+            },
+            tool: 'database_create',
+        },
     ],
     pagination: {
         type: 'offset',
@@ -22334,9 +22369,6 @@ function mysqlAdapter(connector, auth) {
     function isBasicAuth(auth) {
         return auth.type === 'basic';
     }
-    function isFilter(filter) {
-        return 'field' in filter && 'operator' in filter && 'value' in filter;
-    }
     let connection;
     function buildSelectQuery(customLimit, customOffset) {
         if (endpoint.id === "custom_query" && connector.config?.custom_query) {
@@ -22353,10 +22385,6 @@ function mysqlAdapter(connector, auth) {
         // WHERE clause
         if (connector.filters && connector.filters.length > 0) {
             const whereClauses = connector.filters.map(filter => {
-                if (!isFilter(filter)) {
-                    const subClauses = filter.filters.map(f => isFilter(f) ? `\`${f.field}\` ${f.operator} '${f.value}'` : '');
-                    return `(${subClauses.join(` ${filter.op} `)})`;
-                }
                 return `\`${filter.field}\` ${filter.operator} '${filter.value}'`; // Fixed here
             });
             parts.push(`WHERE ${whereClauses.join(' AND ')}`);

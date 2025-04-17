@@ -1,7 +1,6 @@
 import { mysql as mysqlAdapter, MySQLAdapter } from '../src/index'; // Rename adapter import
 import mysql from 'mysql2/promise'; // Keep library as mysql
 import { Connector, AuthConfig, AdapterInstance } from 'openetl';
-import { FilterGroup } from 'openetl';
 
 jest.mock('mysql2/promise');
 
@@ -181,27 +180,5 @@ describe('MySQL Adapter', () => {
     await adapter.connect!();
     mockConnection.end.mockRejectedValueOnce(new Error('Connection closure failed'));
     await expect(adapter.disconnect!()).rejects.toThrow('Connection closure failed');
-  });
-
-  it('builds query with filter groups', async () => {
-    const filters: FilterGroup[] = [{
-      op: 'OR',
-      filters: [
-        { field: 'status', operator: '=', value: 'active' },
-        { field: 'role', operator: '=', value: 'admin' },
-      ],
-    }];
-    const connectorWithFilterGroup = { ...connector, filters };
-    const adapterWithFilterGroup = mysqlAdapter(connectorWithFilterGroup, auth); // Use renamed adapter
-    await adapterWithFilterGroup.connect!();
-
-    const mockRows = [{ id: 1, name: 'Admin', email: 'admin@example.com' }];
-    mockConnection.execute.mockResolvedValueOnce([mockRows]);
-
-    const result = await adapterWithFilterGroup.download({ limit: 1, offset: 0 });
-    expect(mockConnection.execute).toHaveBeenCalledWith(
-      "SELECT id, name, email FROM `test_db`.`users` WHERE (`status` = 'active' OR `role` = 'admin') ORDER BY `name` ASC LIMIT 0, 1"
-    );
-    expect(result.data).toEqual(mockRows);
   });
 });
