@@ -80,6 +80,8 @@ const ZohoAdapter = {
     id: "zoho",
     name: "Zoho CRM Adapter",
     type: "http",
+    category: 'SaaS & CRM Applications',
+    image: 'https://static.cdnlogo.com/logos/z/54/zoho.svg',
     action: ["download", "upload", "sync"],
     credential_type: "oauth2",
     base_url: "https://www.zohoapis.com",
