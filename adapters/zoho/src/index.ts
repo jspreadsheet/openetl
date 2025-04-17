@@ -61,6 +61,16 @@ const ZohoAdapter: HttpAdapter = {
             description: "Retrieve leads from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_leads",
+            defaultFields: [
+                'First_Name',
+                'Last_Name',
+                'Company',
+                'Description',
+                'Email',
+                'Phone',
+                'Mobile',
+                'Created_Time'
+            ]
         },
         {
             id: "create-lead",
@@ -85,6 +95,15 @@ const ZohoAdapter: HttpAdapter = {
             description: "Retrieve contacts from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_contacts",
+            defaultFields: [
+                'First_Name',
+                'Last_Name',
+                'Description',
+                'Email',
+                'Phone',
+                'Mobile',
+                'Created_Time',
+            ]
         },
         {
             id: "create-contact",
@@ -107,6 +126,15 @@ const ZohoAdapter: HttpAdapter = {
             description: "Retrieve deals from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_deals",
+            defaultFields: [
+                'Deal_Name',
+                'Contact_Name',
+                'Description',
+                'Type',
+                'Amount',
+                'Stage',
+                'Closing_Date',
+            ]
         },
         {
             id: "create-deal",
@@ -129,6 +157,19 @@ const ZohoAdapter: HttpAdapter = {
             description: "Retrieve campaigns from Zoho CRM",
             supported_actions: ["download", "sync"],
             tool: "zoho_search_campaigns",
+            defaultFields: [
+                'Campaign_Name',
+                'Type',
+                'Description',
+                'Status',
+                'Start_Date',
+                'End_Date',
+                'Expected',
+                'Actual_Cost',
+                'Budgeted_Cost',
+                'Expected_Response',
+                'Num_sent'
+            ]
         },
         {
             id: "create-campaign",
