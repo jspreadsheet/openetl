@@ -1,6 +1,6 @@
 {
   "name": "@openetl/mysql",
-  "version": "1.0.2",
+  "version": "1.0.12",
   "description": "OpenETL MySQL Adapter",
   "main": "dist/index.js",
   "scripts": {

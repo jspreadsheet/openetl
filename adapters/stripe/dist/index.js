@@ -90,8 +90,8 @@ const StripeAdapter = {
             tool: 'stripe_search_charges',
             defaultFields: [
                 'id',
-                'amount',
                 'currency',
+                'amount',
                 'customer',
                 'description',
                 'status',

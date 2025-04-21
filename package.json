@@ -1,6 +1,6 @@
 {
   "name": "openetl",
-  "version": "1.0.9",
+  "version": "1.0.12",
   "description": "ETL System with TypeScript support",
   "main": "dist/index.js",
   "scripts": {

@@ -10,3 +10,4 @@ node_modules/
 /.idea/openetl-new.iml
 /.idea/php.xml
 /.idea/vcs.xml
+/adapters/stripe/package-lock.json
