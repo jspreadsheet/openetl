@@ -80,7 +80,7 @@ const PostgresqlAdapter: DatabaseAdapter = {
           },
         ]
       },
-      tool: 'postgresql_create',
+      tool: 'database_create',
     },
     {
       id: "table_columns",
@@ -97,7 +97,7 @@ const PostgresqlAdapter: DatabaseAdapter = {
           },
         ]
       },
-      tool: 'postgresql_table_columns',
+      tool: 'table_columns',
     },
   ],
   pagination: {
