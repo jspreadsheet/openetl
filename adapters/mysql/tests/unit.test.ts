@@ -82,7 +82,7 @@ describe('MySQL Adapter', () => {
 
     const result = await adapter.download({ limit: 2, offset: 0 });
     expect(mockConnection.execute).toHaveBeenCalledWith(
-      "SELECT id, name, email FROM `test_db`.`users` WHERE `status` = 'active' ORDER BY `name` ASC LIMIT 0, 2"
+      "SELECT id, name, email FROM `users` WHERE `status` = 'active' ORDER BY `name` ASC LIMIT 0, 2"
     );
     expect(result.data).toEqual(mockRows);
   });
@@ -97,7 +97,7 @@ describe('MySQL Adapter', () => {
 
     const result = await adapterNoFields.download({ limit: 1, offset: 0 });
     expect(mockConnection.execute).toHaveBeenCalledWith(
-      "SELECT * FROM `test_db`.`users` WHERE `status` = 'active' ORDER BY `name` ASC LIMIT 0, 1"
+      "SELECT * FROM `users` WHERE `status` = 'active' ORDER BY `name` ASC LIMIT 0, 1"
     );
     expect(result.data).toEqual(mockRows);
   });
@@ -132,7 +132,7 @@ describe('MySQL Adapter', () => {
 
     await expect(uploadAdapter.upload!(data)).resolves.toBeUndefined();
     expect(mockConnection.execute).toHaveBeenCalledWith(
-      "INSERT INTO `test_db`.`users` (`id`, `name`, `email`) VALUES (1, 'Alice', 'alice@example.com'), (2, 'Bob', 'bob@example.com')"
+      "INSERT INTO `users` (`id`, `name`, `email`) VALUES (1, 'Alice', 'alice@example.com'), (2, 'Bob', 'bob@example.com')"
     );
   });
 
@@ -146,7 +146,7 @@ describe('MySQL Adapter', () => {
 
     await expect(uploadAdapter.upload!(data)).resolves.toBeUndefined();
     expect(mockConnection.execute).toHaveBeenCalledWith(
-      "INSERT INTO `test_db`.`users` (`id`, `name`, `email`) VALUES (1, NULL, 'alice@example.com')"
+      "INSERT INTO `users` (`id`, `name`, `email`) VALUES (1, NULL, 'alice@example.com')"
     );
   });
 
@@ -156,7 +156,7 @@ describe('MySQL Adapter', () => {
     await uploadAdapter.connect!();
 
     await expect(uploadAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
-      'Table_insert endpoint only supported for upload'
+      "table_insert endpoint don't support download"
     );
   });
 
@@ -166,7 +166,7 @@ describe('MySQL Adapter', () => {
     await invalidAdapter.connect!();
 
     await expect(invalidAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
-      'Database and table required for table-based endpoints'
+      "database property is required on the MySQL adapter's table_query endpoint"
     );
   });
 
