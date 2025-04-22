@@ -14,16 +14,9 @@ describe('Orchestrator Unit Tests - Upload Batching', () => {
     action: ["download", "upload", "sync"],
     config: [
       {
-        name: 'database',
-        required: true,
-      },
-      {
+        id: 'collection',
         name: 'collection',
         required: true,
-      },
-      {
-        name: 'custom_query',
-        required: false,
       },
     ],
     credential_type: "basic",
@@ -37,7 +30,16 @@ describe('Orchestrator Unit Tests - Upload Batching', () => {
         id: "collection_query",
         query_type: "table",
         description: "Query a specific collection",
-        supported_actions: ["download", "sync"]
+        supported_actions: ["download", "sync"],
+        settings: {
+          config: [
+            {
+              id: 'custom_query',
+              name: 'custom_query',
+              required: false,
+            },
+          ]
+        }
       },
       {
         id: "custom_query",
@@ -114,7 +116,6 @@ describe('Orchestrator Unit Tests - Upload Batching', () => {
       error_handling: {
         max_retries: 0,
         retry_interval: 300,
-        fail_on_error: false,
       },
       rate_limiting: {
         requests_per_second: 1,

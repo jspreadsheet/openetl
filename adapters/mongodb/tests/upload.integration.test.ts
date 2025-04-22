@@ -74,7 +74,6 @@ describe("MongoDBAdapter Upload Method", () => {
       error_handling: {
         max_retries: 3,
         retry_interval: 300,
-        fail_on_error: false,
       },
       rate_limiting: {
         requests_per_second: 1,
@@ -209,7 +208,7 @@ describe("MongoDBAdapter Upload Method", () => {
     await db.collection('users').insertOne({ _id: testId, name: 'PreExisting' });
 
     pipeline.data = [{ _id: testId, name: 'Alice', email: 'alice@example.com' }];
-    pipeline.error_handling = { max_retries: 0, retry_interval: 1000, fail_on_error: true };
+    pipeline.error_handling = { max_retries: 0, retry_interval: 1000 };
 
     await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow(/duplicate key/i);
 
@@ -224,7 +223,7 @@ describe("MongoDBAdapter Upload Method", () => {
     await db.collection('users').insertOne({ name: 'PreExisting', email: 'alice@example.com' });
   
     pipeline.data = [{ name: 'Alice', email: 'alice@example.com' }];
-    pipeline.error_handling = { max_retries: 0, retry_interval: 1000, fail_on_error: true };
+    pipeline.error_handling = { max_retries: 0, retry_interval: 1000 };
   
     await expect(orchestrator.runPipeline(pipeline)).rejects.toThrow(/duplicate key/i);
   

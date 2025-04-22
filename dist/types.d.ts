@@ -104,6 +104,10 @@ export interface DatabaseEndpoint extends Endpoint {
 }
 export interface DatabaseAdapter extends BaseAdapter {
     type: "database";
+    /**
+     * @default true
+     */
+    hasGetColumnsRoute?: boolean;
     endpoints: DatabaseEndpoint[];
 }
 export type Filter = {

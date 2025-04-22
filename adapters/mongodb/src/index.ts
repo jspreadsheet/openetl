@@ -3,26 +3,22 @@
  * https://componade.com/openetl
  */
 
-import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth, Filter, FilterGroup } from 'openetl';
+import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth, Filter } from 'openetl';
 import { MongoClient, Db, Collection } from 'mongodb';
 
 const MongoDBAdapter: DatabaseAdapter = {
   id: "mongodb",
   name: "MongoDB Database Adapter",
+  category: 'Databases & Data Warehouses',
+  image: "https://static.cdnlogo.com/logos/m/30/mongodb-icon.svg",
   type: "database",
+  hasGetColumnsRoute: false,
   action: ["download", "upload", "sync"],
   config: [
     {
-      name: 'database',
-      required: true,
-    },
-    {
+      id: 'collection',
       name: 'collection',
       required: true,
-    },
-    {
-      name: 'custom_query',
-      required: false,
     },
   ],
   credential_type: "basic",
@@ -36,19 +32,30 @@ const MongoDBAdapter: DatabaseAdapter = {
       id: "collection_query",
       query_type: "table",
       description: "Query a specific collection",
-      supported_actions: ["download", "sync"]
+      supported_actions: ["download", "sync"],
+      tool: 'database_query',
     },
     {
       id: "custom_query",
       query_type: "custom",
       description: "Run a custom MongoDB query",
-      supported_actions: ["download"]
+      supported_actions: ["download"],
+      settings: {
+        config: [
+          {
+            id: 'custom_query',
+            name: 'custom_query',
+            required: false,
+          },
+        ]
+      }
     },
     {
       id: "collection_insert",
       query_type: "table",
       description: "Insert into a specific collection",
-      supported_actions: ["upload"]
+      supported_actions: ["upload"],
+      tool: 'database_create',
     },
   ],
   pagination: { type: 'offset' }
@@ -70,10 +77,6 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
     return auth.type === 'basic';
   }
 
-  function isFilter(filter: Filter | FilterGroup): filter is Filter {
-    return 'field' in filter && 'operator' in filter && 'value' in filter;
-  }
-
   let client: MongoClient;
   let db: Db;
   let collection: Collection;
@@ -87,28 +90,23 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
       }
     }
 
-    if (!connector.config?.database || !connector.config?.collection) {
-      throw new Error("Database and collection required for collection-based endpoints");
+    if (!connector.config?.collection) {
+      throw new Error("Collection required for collection-based endpoints");
     }
 
     const query: any = {};
 
     // Build filters
     if (connector.filters && connector.filters.length > 0) {
-      const processFilter = (filter: Filter | FilterGroup): any => {
-        if (isFilter(filter)) {
-          switch (filter.operator) {
-            case '=': return { [filter.field]: filter.value };
-            case '>': return { [filter.field]: { $gt: filter.value } };
-            case '<': return { [filter.field]: { $lt: filter.value } };
-            case '>=': return { [filter.field]: { $gte: filter.value } };
-            case '<=': return { [filter.field]: { $lte: filter.value } };
-            case '!=': return { [filter.field]: { $ne: filter.value } };
-            default: return { [filter.field]: filter.value };
-          }
-        } else {
-          const subQueries = filter.filters.map(f => processFilter(f));
-          return { [filter.op === 'OR' ? '$or' : '$and']: subQueries };
+      const processFilter = (filter: Filter): any => {
+        switch (filter.operator) {
+          case '=': return { [filter.field]: filter.value };
+          case '>': return { [filter.field]: { $gt: filter.value } };
+          case '<': return { [filter.field]: { $lt: filter.value } };
+          case '>=': return { [filter.field]: { $gte: filter.value } };
+          case '<=': return { [filter.field]: { $lte: filter.value } };
+          case '!=': return { [filter.field]: { $ne: filter.value } };
+          default: return { [filter.field]: filter.value };
         }
       };
 
@@ -158,7 +156,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
       const config = {
         host: auth.credentials.host || defaultConfig.host,
         port: auth.credentials.port ? parseInt(auth.credentials.port) : defaultConfig.port,
-        database: connector.config?.database || auth.credentials.database || defaultConfig.database,
+        database: auth.credentials.database || defaultConfig.database,
         username: auth.credentials.username,
         password: auth.credentials.password
       };
