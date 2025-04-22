@@ -22300,11 +22300,6 @@ const MySQLAdapter = {
             settings: {
                 config: [
                     {
-                        id: 'database',
-                        name: 'database',
-                        required: true,
-                    },
-                    {
                         id: 'table',
                         name: 'table',
                         required: true,
@@ -22337,11 +22332,6 @@ const MySQLAdapter = {
             settings: {
                 config: [
                     {
-                        id: 'database',
-                        name: 'database',
-                        required: true,
-                    },
-                    {
                         id: 'table',
                         name: 'table',
                         required: true,
@@ -22349,6 +22339,23 @@ const MySQLAdapter = {
                 ],
             },
             tool: 'database_create',
+        },
+        {
+            id: "table_columns",
+            query_type: "table",
+            description: "Query the columns of a specific table",
+            supported_actions: ["download"],
+            settings: {
+                pagination: false,
+                config: [
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ],
+            },
+            tool: 'table_columns',
         },
     ],
     pagination: {
@@ -22370,18 +22377,27 @@ function mysqlAdapter(connector, auth) {
         return auth.type === 'basic';
     }
     let connection;
-    function buildSelectQuery(customLimit, customOffset) {
-        if (endpoint.id === "custom_query" && connector.config?.custom_query) {
-            return connector.config.custom_query;
+    function buildGetColumnsQuery(pageOptions) {
+        if (!connector.config?.table) {
+            throw new Error(`table property is required on the MySQL adapter's ${endpoint.id} endpoint`);
         }
-        if (!connector.config?.database || !connector.config?.table) {
-            throw new Error("Database and table required for table-based endpoints");
+        return `SELECT COLUMN_NAME as column_name, DATA_TYPE as data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '${auth.credentials.database}' AND TABLE_NAME = '${connector.config.table}'`;
+    }
+    function buildCustomQuery(pageOptions) {
+        if (!connector.config?.custom_query) {
+            throw new Error(`custom_query property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`);
+        }
+        return connector.config.custom_query;
+    }
+    function buildSelectQuery(pageOptions) {
+        if (!connector.config?.table) {
+            throw new Error(`database property is required on the MySQL adapter's ${endpoint.id} endpoint`);
         }
         const parts = [];
         // SELECT clause
         parts.push(`SELECT ${connector.fields.length > 0 ? connector.fields.join(', ') : '*'}`);
         // FROM clause
-        parts.push(`FROM \`${connector.config.database}\`.\`${connector.config.table}\``);
+        parts.push(`FROM \`${connector.config.table}\``);
         // WHERE clause
         if (connector.filters && connector.filters.length > 0) {
             const whereClauses = connector.filters.map(filter => {
@@ -22397,19 +22413,23 @@ function mysqlAdapter(connector, auth) {
             parts.push(`ORDER BY ${orderBy}`);
         }
         // LIMIT and OFFSET (MySQL uses LIMIT offset, row_count syntax)
-        if (customLimit !== undefined) {
-            parts.push(`LIMIT ${customOffset || 0}, ${customLimit}`);
+        if (pageOptions.limit !== undefined) {
+            parts.push(`LIMIT ${pageOptions.offset || 0}, ${pageOptions.limit}`);
         }
         return parts.join(' ');
     }
+    const queryBuilderMap = {
+        table_query: buildSelectQuery,
+        custom_query: buildCustomQuery,
+        table_columns: buildGetColumnsQuery,
+    };
     function buildInsertQuery(data) {
-        if (!connector.config?.database || !connector.config?.table) {
-            throw new Error("Database and table required for table_insert endpoint");
+        if (!connector.config?.table) {
+            throw new Error(`table property is required on the MySQL adapter's ${endpoint.id} endpoint`);
         }
         if (!data || data.length === 0) {
             throw new Error("Data array cannot be empty for insert operation");
         }
-        const database = connector.config.database;
         const table = connector.config.table;
         const fields = connector.fields.length > 0 ? connector.fields : Object.keys(data[0]);
         if (fields.length === 0) {
@@ -22431,7 +22451,7 @@ function mysqlAdapter(connector, auth) {
         // Break down the query construction for clarity
         const fieldList = fields.map(f => `\`${f}\``).join(', ');
         const valueList = values.join(', ');
-        const query = `INSERT INTO \`${database}\`.\`${table}\` (${fieldList}) VALUES ${valueList}`;
+        const query = `INSERT INTO \`${table}\` (${fieldList}) VALUES ${valueList}`;
         log("Generated query:", query); // Debug output to verify the string
         return query;
     }
@@ -22448,11 +22468,14 @@ function mysqlAdapter(connector, auth) {
                 database: 'mysql',
                 port: 3306,
             };
+            if (!auth.credentials.database) {
+                auth.credentials.database = defaultConfig.database;
+            }
             const config = {
                 user: auth.credentials.username,
                 password: auth.credentials.password,
                 host: auth.credentials.host || defaultConfig.host,
-                database: auth.credentials.database || defaultConfig.database,
+                database: auth.credentials.database,
                 port: auth.credentials.port !== undefined
                     ? parseInt(auth.credentials.port.toString(), 10)
                     : defaultConfig.port,
@@ -22482,10 +22505,11 @@ function mysqlAdapter(connector, auth) {
             }
         },
         download: async function (pageOptions) {
-            if (endpoint.id === "table_insert") {
-                throw new Error("Table_insert endpoint only supported for upload");
+            const queryBuilder = queryBuilderMap[endpoint.id];
+            if (!queryBuilder) {
+                throw new Error(`${endpoint.id} endpoint don't support download`);
             }
-            const query = buildSelectQuery(pageOptions.limit, pageOptions.offset);
+            const query = queryBuilder(pageOptions);
             log("Executing query:", query);
             try {
                 const [rows] = await connection.execute(query);
