@@ -45,7 +45,7 @@ describe("MongoDBAdapter Upload Method", () => {
       adapter_id: "mongodb",
       endpoint_id: "collection_query",
       credential_id: "mongo-auth",
-      config: { database: mongoDatabase, collection: "users" },
+      config: { table: "users" },
       fields: ['name', 'email'],
       filters: [{
         field: 'status',
@@ -61,7 +61,7 @@ describe("MongoDBAdapter Upload Method", () => {
 
 		// Configure connector for upload
 		connector.endpoint_id = "collection_insert";
-		connector.config = { database: mongoDatabase, collection: "users" };
+		connector.config = { table: "users" };
 		connector.fields = ["name", "email"];
 		connector.filters = []; // Reset filters
 		connector.sort = []; // Reset sort
@@ -184,8 +184,7 @@ describe("MongoDBAdapter Upload Method", () => {
 
 	it("Upload: upload works even with non existent collection", async () => {
 		connector.config = {
-			database: mongoDatabase,
-			collection: "nonexistent_collection",
+			table: "nonexistent_collection",
 		};
 		pipeline.data = [{ name: "Hank", email: "hank@example.com" }];
 
@@ -246,7 +245,7 @@ describe("MongoDBAdapter Upload Method", () => {
     // Configure connector with itemsPerPage = 1
     connector.pagination = { itemsPerPage: 1 };
     connector.endpoint_id = 'collection_insert';
-    connector.config = { database: mongoDatabase, collection: 'users' };
+    connector.config = { table: 'users' };
     connector.fields = ['name', 'email'];
     connector.filters = [];
     connector.sort = [];

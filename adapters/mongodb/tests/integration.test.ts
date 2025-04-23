@@ -47,7 +47,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       adapter_id: "mongodb",
       endpoint_id: "collection_query",
       credential_id: "mongo-auth",
-      config: { database: mongoDatabase, collection: "users" },
+      config: { table: "users" },
       fields: ['name', 'email'],
       filters: [{
         field: 'status',
@@ -146,7 +146,7 @@ describe('MongoDB Adapter Integration Tests', () => {
 
     connector.endpoint_id = 'custom_query';
     connector.config!.custom_query = '{"age": {"$gt": 25}}';
-    connector.config!.collection = 'temptable';
+    connector.config!.table = 'temptable';
 
     let result;
     pipeline.onload = (data) => {
@@ -204,7 +204,7 @@ describe('MongoDB Adapter Integration Tests', () => {
       adapter_id: "mongodb",
       endpoint_id: "collection_insert",
       credential_id: "mongo-auth",
-      config: { database: mongoDatabase, collection: "test" },
+      config: { table: "test" },
       fields: ['name', 'email'],
       transform: [],
       pagination: { itemsPerPage: 10 },

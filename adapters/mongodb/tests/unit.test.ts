@@ -22,8 +22,7 @@ describe('MongoDB Adapter Unit Tests', () => {
       endpoint_id: 'collection_query',
       credential_id: 'mongo-auth',
       config: {
-        database: 'admin',
-        collection: 'users',
+        table: 'users',
       },
       fields: ['_id', 'name', 'email'],
       filters: [{
@@ -79,7 +78,6 @@ describe('MongoDB Adapter Unit Tests', () => {
   it('connects successfully with valid credentials', async () => {
     await expect(adapter.connect!()).resolves.toBeUndefined();
     expect(mockClient.connect).toHaveBeenCalled();
-    expect(mockDb.collection).toHaveBeenCalledWith('users');
   });
 
   it('throws error on connection failure', async () => {
@@ -166,7 +164,7 @@ describe('MongoDB Adapter Unit Tests', () => {
     const invalidAdapter = mongodb(invalidConnector, auth);
 
     await expect(invalidAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
-      'Collection required for collection-based endpoints'
+      "table property is required on the MongoDB adapter's collection_query endpoint"
     );
   });
 

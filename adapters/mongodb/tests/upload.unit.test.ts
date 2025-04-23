@@ -95,7 +95,7 @@ describe('Orchestrator Unit Tests - Upload Batching', () => {
       adapter_id: 'mongodb',
       endpoint_id: 'collection_insert',
       credential_id: 'mongo-auth',
-      config: { database: 'admin', collection: 'users' },
+      config: { table: 'users' },
       fields: ['name', 'email'],
       filters: [],
       sort: [],
