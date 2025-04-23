@@ -37258,13 +37258,6 @@ const MongoDBAdapter = {
     type: "database",
     hasGetColumnsRoute: false,
     action: ["download", "upload", "sync"],
-    config: [
-        {
-            id: 'collection',
-            name: 'collection',
-            required: true,
-        },
-    ],
     credential_type: "basic",
     metadata: {
         provider: "mongodb",
@@ -37277,6 +37270,15 @@ const MongoDBAdapter = {
             query_type: "table",
             description: "Query a specific collection",
             supported_actions: ["download", "sync"],
+            settings: {
+                config: [
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ]
+            },
             tool: 'database_query',
         },
         {
@@ -37286,6 +37288,11 @@ const MongoDBAdapter = {
             supported_actions: ["download"],
             settings: {
                 config: [
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
                     {
                         id: 'custom_query',
                         name: 'custom_query',
@@ -37299,6 +37306,15 @@ const MongoDBAdapter = {
             query_type: "table",
             description: "Insert into a specific collection",
             supported_actions: ["upload"],
+            settings: {
+                config: [
+                    {
+                        id: 'table',
+                        name: 'table',
+                        required: true,
+                    },
+                ]
+            },
             tool: 'database_create',
         },
     ],
@@ -37320,7 +37336,6 @@ function mongodb(connector, auth) {
     }
     let client;
     let db;
-    let collection;
     function buildMongoQuery() {
         if (endpoint.id === "custom_query" && connector.config?.custom_query) {
             try {
@@ -37329,9 +37344,6 @@ function mongodb(connector, auth) {
             catch (error) {
                 throw new Error(`Invalid custom query JSON: ${error.message}`);
             }
-        }
-        if (!connector.config?.collection) {
-            throw new Error("Collection required for collection-based endpoints");
         }
         const query = {};
         // Build filters
@@ -37391,13 +37403,14 @@ function mongodb(connector, auth) {
                 username: auth.credentials.username,
                 password: auth.credentials.password
             };
-            const url = `mongodb://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}?authSource=admin`;
+            const url = config.username
+                ? `mongodb://${config.username}:${config.password}@${config.host}:${config.port}/${config.database}?authSource=admin`
+                : `mongodb://${config.host}:${config.port}/${config.database}`;
             try {
                 log("Connecting to MongoDB...");
                 client = new mongodb_1.MongoClient(url);
                 await client.connect();
                 db = client.db(config.database);
-                collection = db.collection(connector.config.collection);
                 log("Connection successful");
             }
             catch (error) {
@@ -37422,6 +37435,9 @@ function mongodb(connector, auth) {
             if (endpoint.id === "collection_insert") {
                 throw new Error("Collection_insert endpoint only supported for upload");
             }
+            if (!connector.config?.table) {
+                throw new Error(`table property is required on the MongoDB adapter's ${endpoint.id} endpoint`);
+            }
             if (pageOptions.offset && Number(pageOptions.offset) < 0) {
                 pageOptions.offset = 0;
             }
@@ -37430,6 +37446,7 @@ function mongodb(connector, auth) {
             const sort = buildSort();
             log("Executing query:", JSON.stringify(query));
             try {
+                const collection = db.collection(connector.config.table);
                 let cursor = collection.find(query);
                 if (projection)
                     cursor = cursor.project(projection);
@@ -37454,11 +37471,12 @@ function mongodb(connector, auth) {
             if (endpoint.id !== "collection_insert") {
                 throw new Error("Upload only supported for collection_insert endpoint");
             }
-            if (!collection) {
-                throw new Error("Not connected to MongoDB");
+            if (!connector.config?.table) {
+                throw new Error(`table property is required on the MongoDB adapter's ${endpoint.id} endpoint`);
             }
             log("Uploading documents:", data.length);
             try {
+                const collection = db.collection(connector.config.table);
                 const result = await collection.insertMany(data);
                 log("Inserted documents:", result.insertedCount);
             }
