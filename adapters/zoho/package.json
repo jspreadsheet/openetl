@@ -1,6 +1,6 @@
 {
   "name": "@openetl/zoho",
-  "version": "1.0.2",
+  "version": "1.0.12",
   "description": "OpenETL Zoho Adapter",
   "main": "dist/index.js",
   "scripts": {

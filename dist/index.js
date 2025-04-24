@@ -72,20 +72,25 @@ async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartT
     });
     throw lastError;
 }
-function getPaginationFromEndpoint(connector, adapter, itemsPerPage, log) {
+function getEndpoint(connector, adapter) {
     const adapterConfig = adapter.getConfig();
-    let paginationConfig;
     const { endpoints } = adapterConfig;
     const { endpoint_id: endpointId } = connector;
     const endpoint = endpoints.find(e => e.id === endpointId);
+    return endpoint;
+}
+function getPaginationFromEndpoint(connector, adapter, itemsPerPage, log) {
+    const endpoint = getEndpoint(connector, adapter);
     if (!endpoint) {
-        throw new Error(`Endpoint ${endpointId} not found in adapter ${connector.adapter_id}`);
+        throw new Error(`Endpoint ${connector.endpoint_id} not found in adapter ${connector.adapter_id}`);
     }
+    let paginationConfig;
     const pagination = endpoint.settings?.pagination;
     if (typeof pagination !== "undefined") {
         paginationConfig = pagination;
     }
     if (typeof paginationConfig === "undefined") {
+        const adapterConfig = adapter.getConfig();
         paginationConfig = adapterConfig.pagination || false;
     }
     if (!paginationConfig) {
@@ -130,6 +135,16 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
     const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
     const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
     const downloadStartTime = Date.now();
+    const endpoint = getEndpoint(pipeline.source, sourceAdapter);
+    if (!endpoint) {
+        const { endpoint_id, adapter_id } = pipeline.source;
+        throw new Error(`Endpoint ${endpoint_id} not found in adapter ${adapter_id}`);
+    }
+    if (pipeline.source.fields.length === 0 &&
+        'defaultFields' in endpoint &&
+        endpoint.defaultFields) {
+        pipeline.source.fields = [...endpoint.defaultFields];
+    }
     let { itemsPerPage, paginationType, } = getPaginationFromEndpoint(pipeline.source, sourceAdapter, pipeline.source.pagination?.itemsPerPage || undefined, log);
     let pageResult, fetchDataMoment, pageOffset = pipeline.source.pagination?.pageOffsetKey || undefined;
     let data = [];

@@ -123,6 +123,7 @@ export interface Endpoint {
 export interface HttpEndpoint extends Endpoint {
     path: string;
     method: "GET" | "POST" | "PUT" | "DELETE";
+    defaultFields?: string[];
 }
 
 export interface HttpAdapter extends BaseAdapter {
@@ -137,6 +138,12 @@ export interface DatabaseEndpoint extends Endpoint {
 
 export interface DatabaseAdapter extends BaseAdapter {
     type: "database";
+
+    /**
+     * @default true
+     */
+    hasGetColumnsRoute?: boolean;
+
     endpoints: DatabaseEndpoint[];
 }
 
