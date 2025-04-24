@@ -30,7 +30,7 @@ const XeroAdapter: HttpAdapter = {
       id: "contacts",
       path: "/Contacts",
       method: "GET",
-      description: "Retrieve all contacts from Xero",
+      description: "Retrieve contacts from Xero",
       supported_actions: ["download", "sync"],
       settings: {
         pagination: {
@@ -47,10 +47,30 @@ const XeroAdapter: HttpAdapter = {
       supported_actions: ["upload"],
     },
     {
+      id: "items",
+      path: "/Items",
+      method: "GET",
+      description: "Retrieve items from Xero",
+      supported_actions: ["download", "sync"],
+    },
+    {
+      id: "create-item",
+      path: "/Items",
+      method: "POST",
+      description: "Create a new item in Xero",
+      supported_actions: ["upload"],
+      settings: {
+        pagination: {
+          type: 'offset',
+          maxItemsPerPage: 100,
+        }
+      }
+    },
+    {
       id: "invoices",
       path: "/Invoices",
       method: "GET",
-      description: "Retrieve all invoices from Xero",
+      description: "Retrieve invoices from Xero",
       supported_actions: ["download", "sync"],
       settings: {
         pagination: {
@@ -70,15 +90,21 @@ const XeroAdapter: HttpAdapter = {
       id: "accounts",
       path: "/Accounts",
       method: "GET",
-      description: "Retrieve all accounts from Xero",
+      description: "Retrieve accounts from Xero",
       supported_actions: ["download", "sync"],
     },
     {
       id: "create-account",
       path: "/Accounts",
-      method: "POST",
+      method: "PUT",
       description: "Create a new account in Xero",
       supported_actions: ["upload"],
+      settings: {
+        pagination: {
+          type: 'offset',
+          maxItemsPerPage: 1,
+        },
+      }
     },
   ],
   helpers: {
@@ -169,8 +195,6 @@ function xero(connector: Connector, auth: AuthConfig): AdapterInstance {
       );
       auth.credentials.access_token = response.data.access_token;
       auth.credentials.refresh_token = response.data.refresh_token || auth.credentials.refresh_token;
-      console.log('novo refresh token')
-      console.log(auth.credentials.refresh_token)
       auth.expires_at = new Date(Date.now() + response.data.expires_in * 1000).toISOString();
       log("Token refreshed successfully");
     } catch (error) {
@@ -209,7 +233,13 @@ function xero(connector: Connector, auth: AuthConfig): AdapterInstance {
     };
   }
 
+  let tenantId: string | undefined;
+
   const getTenantId = async function() {
+    if (tenantId) {
+      return tenantId;
+    }
+
     const organisationName = connector.config?.organisationName;
     if (!organisationName) {
       throw new Error('An organisationName is required to use Xero adapter endpoints');
@@ -238,7 +268,9 @@ function xero(connector: Connector, auth: AuthConfig): AdapterInstance {
       throw new Error(`The Xero adapter does not have access to an organization named "${organisationName}". Please use a connection that does have access to this organization, or use one of the organizations available for this connection: ${tenantNames.join(', ')}`);
     }
 
-    return targetConnection.tenantId;
+    tenantId = targetConnection.tenantId as string;
+
+    return tenantId;
   }
 
   function setDownloadEndpointConfig(limit: number | undefined, offset: string | number | undefined, config: AxiosRequestConfig): void {
@@ -338,6 +370,7 @@ function xero(connector: Connector, auth: AuthConfig): AdapterInstance {
             const retryAfter = error.response.headers['retry-after'] ? parseInt(error.response.headers['retry-after'], 10) * 1000 : 1000;
             log(`Rate limit hit, waiting ${retryAfter}ms`);
             await delay(retryAfter);
+
             return await download(pageOptions);
           }
         }
@@ -354,7 +387,9 @@ function xero(connector: Connector, auth: AuthConfig): AdapterInstance {
       const config = await buildRequestConfig();
 
       try {
-        await axios.post(
+        const method = endpoint.method === 'POST' ? 'post' : 'put';
+
+        await axios[method](
           `${XeroAdapter.base_url}${endpoint.path}`,
           { [endpoint.path.split('/')[1]]: data },
           config
