@@ -15,10 +15,17 @@ const XeroAdapter: HttpAdapter = {
   name: "Xero Accounting Adapter",
   type: "http",
   category: 'Accounting & Finance',
-  image: 'https://www.xero.com/content/dam/xero-refresh/global/logos/xero-logo-blue.svg', // Example logo URL
+  image: 'https://static.cdnlogo.com/logos/x/66/xero.svg',
   action: ["download", "upload", "sync"],
   credential_type: "oauth2",
   base_url: "https://api.xero.com/api.xro/2.0",
+  config: [
+    {
+      id: 'organisationName',
+      name: 'organisationName',
+      required: true,
+    },
+  ],
   metadata: {
     provider: "xero",
     description: "Adapter for Xero Accounting API",
@@ -37,7 +44,8 @@ const XeroAdapter: HttpAdapter = {
           type: 'offset',
           maxItemsPerPage,
         },
-      }
+      },
+      tool: 'xero_search_contacts',
     },
     {
       id: "create-contact",
@@ -45,6 +53,7 @@ const XeroAdapter: HttpAdapter = {
       method: "POST",
       description: "Create a new contact in Xero",
       supported_actions: ["upload"],
+      tool: 'xero_create_contacts',
     },
     {
       id: "items",
@@ -52,6 +61,7 @@ const XeroAdapter: HttpAdapter = {
       method: "GET",
       description: "Retrieve items from Xero",
       supported_actions: ["download", "sync"],
+      tool: 'xero_search_items',
     },
     {
       id: "create-item",
@@ -64,7 +74,8 @@ const XeroAdapter: HttpAdapter = {
           type: 'offset',
           maxItemsPerPage: 100,
         }
-      }
+      },
+      tool: 'xero_create_items',
     },
     {
       id: "invoices",
@@ -77,7 +88,8 @@ const XeroAdapter: HttpAdapter = {
           type: 'offset',
           maxItemsPerPage,
         },
-      }
+      },
+      tool: 'xero_search_invoices',
     },
     {
       id: "create-invoice",
@@ -85,6 +97,7 @@ const XeroAdapter: HttpAdapter = {
       method: "POST",
       description: "Create a new invoice in Xero",
       supported_actions: ["upload"],
+      tool: 'xero_create_invoices',
     },
     {
       id: "accounts",
@@ -92,6 +105,7 @@ const XeroAdapter: HttpAdapter = {
       method: "GET",
       description: "Retrieve accounts from Xero",
       supported_actions: ["download", "sync"],
+      tool: 'xero_search_accounts',
     },
     {
       id: "create-account",
@@ -104,7 +118,8 @@ const XeroAdapter: HttpAdapter = {
           type: 'offset',
           maxItemsPerPage: 1,
         },
-      }
+      },
+      tool: 'xero_create_accounts',
     },
   ],
   helpers: {
