@@ -448,6 +448,235 @@ Each adapter should have:
 
 ---
 
+## 11. Missing Features for Competitive FREE ETL Project
+
+### Critical Missing Features (High Priority)
+
+#### 11.1 Streaming/Chunked Processing
+Currently, all data is loaded into memory. For large datasets, implement streaming:
+
+```typescript
+export interface StreamingOptions {
+    chunkSize?: number;
+    onChunk?: (chunk: T[], chunkIndex: number) => Promise<void>;
+    backpressure?: boolean;
+}
+
+// Usage in pipeline
+const pipeline = {
+    source: connector,
+    streaming: {
+        chunkSize: 1000,
+        onChunk: async (chunk, index) => {
+            // Process each chunk without loading all into memory
+        }
+    }
+};
+```
+
+#### 11.2 Data Validation Before Upload
+Validate data schema before sending to target:
+
+```typescript
+export interface SchemaValidator {
+    validate(data: any[], schema: SchemaInfo): ValidationResult;
+}
+
+// In Connector:
+validation?: {
+    schema?: SchemaInfo;
+    strict?: boolean;  // Fail on first error
+    coerce?: boolean;  // Attempt type coercion
+}
+```
+
+#### 11.3 Dry Run Mode
+Test pipeline without executing:
+
+```typescript
+export interface DryRunResult {
+    wouldExtract: number;
+    wouldTransform: { before: any; after: any }[];
+    wouldLoad: number;
+    errors: string[];
+    warnings: string[];
+}
+
+// In pipeline execution:
+orchestrator.runPipeline(pipeline, { dryRun: true });
+```
+
+#### 11.4 Resume/Checkpoint Support
+Continue from failure point:
+
+```typescript
+export interface Checkpoint {
+    pipelineId: string;
+    lastOffset: number | string;
+    processedCount: number;
+    timestamp: string;
+    state?: Record<string, unknown>;
+}
+
+// In Pipeline:
+checkpoint?: {
+    enabled: boolean;
+    storage: 'memory' | 'file' | 'redis';
+    path?: string;
+}
+```
+
+#### 11.5 Parallel/Concurrent Processing
+Process multiple batches concurrently:
+
+```typescript
+export interface ConcurrencyOptions {
+    maxConcurrent?: number;  // Default: 1 (sequential)
+    batchSize?: number;
+    preserveOrder?: boolean;
+}
+
+// In Pipeline rate_limiting:
+rate_limiting?: {
+    requests_per_second: number;
+    concurrent_requests: number;  // Enable this
+    max_retries_on_rate_limit: number;
+}
+```
+
+### Medium Priority Features
+
+#### 11.6 Upsert Support
+Insert or update based on key:
+
+```typescript
+export interface UpsertOptions {
+    keys: string[];              // Unique key fields
+    updateFields?: string[];     // Fields to update (default: all)
+    onConflict?: 'update' | 'ignore' | 'error';
+}
+
+// In DatabaseEndpoint:
+export interface DatabaseEndpoint extends Endpoint {
+    query_type: "table" | "custom" | "upsert";
+    upsert?: UpsertOptions;
+}
+```
+
+#### 11.7 CLI Tool
+Command-line interface for running pipelines:
+
+```bash
+# Run a pipeline from JSON config
+openetl run --config pipeline.json --vault vault.json
+
+# Validate configuration
+openetl validate --config pipeline.json
+
+# List available adapters
+openetl adapters list
+
+# Test connection
+openetl test-connection --adapter postgresql --vault vault.json
+```
+
+#### 11.8 Change Data Capture (CDC)
+Track and sync only changed records:
+
+```typescript
+export interface CDCOptions {
+    trackingColumn: string;      // e.g., 'updated_at'
+    lastSync?: string | number;  // Last sync timestamp/version
+    includeDeletes?: boolean;
+    softDeleteColumn?: string;
+}
+```
+
+#### 11.9 Data Masking/PII Protection
+Built-in anonymization:
+
+```typescript
+export type MaskingType =
+    | 'hash'         // SHA-256 hash
+    | 'redact'       // Replace with ***
+    | 'partial'      // Show last 4 chars
+    | 'fake'         // Replace with fake data
+    | 'encrypt';     // Reversible encryption
+
+export interface MaskingRule {
+    field: string;
+    type: MaskingType;
+    options?: Record<string, unknown>;
+}
+
+// In Connector:
+masking?: MaskingRule[];
+```
+
+#### 11.10 Metrics/Observability
+Built-in metrics collection:
+
+```typescript
+export interface PipelineMetrics {
+    extractedCount: number;
+    transformedCount: number;
+    loadedCount: number;
+    errorCount: number;
+    durationMs: number;
+    bytesProcessed: number;
+    avgRecordsPerSecond: number;
+}
+
+export interface MetricsCollector {
+    onExtract(count: number, durationMs: number): void;
+    onTransform(count: number, durationMs: number): void;
+    onLoad(count: number, durationMs: number): void;
+    onError(error: AdapterError): void;
+    getMetrics(): PipelineMetrics;
+}
+```
+
+### Low Priority (Future Roadmap)
+
+#### 11.11 Built-in Scheduling
+Actual scheduler implementation (not just configuration):
+
+```typescript
+import { schedule } from 'openetl/scheduler';
+
+schedule(pipeline, {
+    cron: '0 0 * * *',  // Daily at midnight
+    timezone: 'UTC',
+    retryOnFailure: true,
+});
+```
+
+#### 11.12 Web UI (Future)
+Admin interface for pipeline management - consider separate package.
+
+#### 11.13 Distributed Processing (Future)
+Support for running across multiple workers/nodes.
+
+---
+
+## 12. Comparison with Popular ETL Tools
+
+| Feature | OpenETL | Airbyte | Singer | Apache NiFi |
+|---------|---------|---------|--------|-------------|
+| TypeScript Native | ✅ | ❌ | ❌ | ❌ |
+| Lightweight | ✅ | ❌ | ✅ | ❌ |
+| MIT License | ✅ | ELVE2 | ✅ | Apache 2.0 |
+| Streaming | ❌ TODO | ✅ | ✅ | ✅ |
+| Schema Validation | ❌ TODO | ✅ | ✅ | ✅ |
+| CDC Support | ❌ TODO | ✅ | Partial | ✅ |
+| CLI Tool | ❌ TODO | ✅ | ✅ | ✅ |
+| Web UI | ❌ | ✅ | ❌ | ✅ |
+| Custom Transforms | ✅ | Limited | ✅ | ✅ |
+| SQL Injection Protection | ✅ | ✅ | Varies | ✅ |
+| Parameterized Queries | ✅ | ✅ | Varies | ✅ |
+
+---
+
 ## Notes
 
 - Always use parameterized queries for database adapters
