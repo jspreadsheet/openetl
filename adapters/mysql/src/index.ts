@@ -6,6 +6,51 @@
 import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth } from 'openetl';
 import mysql, { RowDataPacket } from 'mysql2/promise';
 
+// SQL Security Functions
+const ALLOWED_OPERATORS = new Set([
+    '=', '!=', '<>', '<', '>', '<=', '>=',
+    'LIKE', 'NOT LIKE',
+    'IN', 'NOT IN', 'IS NULL', 'IS NOT NULL',
+    'BETWEEN', 'NOT BETWEEN'
+]);
+
+/**
+ * Escapes a MySQL identifier (table name, column name, database name)
+ * by wrapping in backticks and escaping any existing backticks
+ */
+function escapeIdentifier(identifier: string): string {
+    if (!identifier || typeof identifier !== 'string') {
+        throw new Error('Invalid identifier: must be a non-empty string');
+    }
+    // Check for dangerous characters that shouldn't be in identifiers
+    if (/[\x00-\x1f\x7f]/.test(identifier)) {
+        throw new Error('Invalid identifier: contains control characters');
+    }
+    return `\`${identifier.replace(/`/g, '``')}\``;
+}
+
+/**
+ * Validates that an operator is in the allowed list
+ */
+function validateOperator(operator: string): string {
+    const normalized = operator.trim().toUpperCase();
+    if (!ALLOWED_OPERATORS.has(normalized)) {
+        throw new Error(`Invalid SQL operator: '${operator}'`);
+    }
+    return normalized;
+}
+
+/**
+ * Validates sort direction
+ */
+function validateSortDirection(direction: string): 'ASC' | 'DESC' {
+    const normalized = direction.trim().toUpperCase();
+    if (normalized !== 'ASC' && normalized !== 'DESC') {
+        throw new Error(`Invalid sort direction: '${direction}'`);
+    }
+    return normalized;
+}
+
 const MySQLAdapter: DatabaseAdapter = {
     id: "mysql",
     name: "MySQL Database Adapter",
@@ -113,66 +158,104 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
         offset?: string | number | undefined;
     };
 
-    function buildGetColumnsQuery(pageOptions: PageOptions) {
+    function buildGetColumnsQuery(pageOptions: PageOptions): { sql: string; values: any[] } {
         if (!connector.config?.table) {
             throw new Error(`table property is required on the MySQL adapter's ${endpoint.id} endpoint`)
         }
 
-        return `SELECT COLUMN_NAME as column_name, DATA_TYPE as data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '${(auth as BasicAuth).credentials.database}' AND TABLE_NAME = '${connector.config.table}'`;
+        return {
+            sql: `SELECT COLUMN_NAME as column_name, DATA_TYPE as data_type FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+            values: [(auth as BasicAuth).credentials.database, connector.config.table]
+        };
     }
-    
-    function buildCustomQuery(pageOptions: PageOptions) {
+
+    function buildCustomQuery(pageOptions: PageOptions): { sql: string; values: any[] } {
         if (!connector.config?.custom_query) {
-            throw new Error(`custom_query property is required on the PostgreSQL adapter's ${endpoint.id} endpoint`)
+            throw new Error(`custom_query property is required on the MySQL adapter's ${endpoint.id} endpoint`)
         }
 
-        return connector.config.custom_query;
+        // Note: Custom queries are user-provided and should be used carefully
+        return { sql: connector.config.custom_query, values: [] };
     }
 
-    function buildSelectQuery(pageOptions: PageOptions): string {
+    function buildSelectQuery(pageOptions: PageOptions): { sql: string; values: any[] } {
         if (!connector.config?.table) {
-            throw new Error(`database property is required on the MySQL adapter's ${endpoint.id} endpoint`)
+            throw new Error(`table property is required on the MySQL adapter's ${endpoint.id} endpoint`)
         }
 
-        const parts = [];
+        const parts: string[] = [];
+        const values: any[] = [];
 
-        // SELECT clause
-        parts.push(`SELECT ${connector.fields.length > 0 ? connector.fields.join(', ') : '*'}`);
+        // SELECT clause - escape all field identifiers
+        const escapedFields = connector.fields.length > 0
+            ? connector.fields.map(f => escapeIdentifier(f)).join(', ')
+            : '*';
+        parts.push(`SELECT ${escapedFields}`);
 
-        // FROM clause
-        parts.push(`FROM \`${connector.config.table}\``);
+        // FROM clause - escape table identifier
+        parts.push(`FROM ${escapeIdentifier(connector.config.table)}`);
 
-        // WHERE clause
+        // WHERE clause - use parameterized values
         if (connector.filters && connector.filters.length > 0) {
             const whereClauses = connector.filters.map(filter => {
-                return `\`${filter.field}\` ${filter.operator} '${filter.value}'`; // Fixed here
+                // Skip FilterGroup for now (only process simple filters)
+                if ('op' in filter) {
+                    throw new Error('FilterGroup is not yet supported in MySQL adapter');
+                }
+
+                const field = escapeIdentifier(filter.field);
+                const operator = validateOperator(filter.operator);
+
+                // Handle special operators
+                if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
+                    return `${field} ${operator}`;
+                }
+
+                if (operator === 'IN' || operator === 'NOT IN') {
+                    const inValues = Array.isArray(filter.value) ? filter.value : [filter.value];
+                    const placeholders = inValues.map(() => '?').join(', ');
+                    values.push(...inValues);
+                    return `${field} ${operator} (${placeholders})`;
+                }
+
+                if (operator === 'BETWEEN' || operator === 'NOT BETWEEN') {
+                    if (!Array.isArray(filter.value) || filter.value.length !== 2) {
+                        throw new Error(`${operator} requires an array of exactly 2 values`);
+                    }
+                    values.push(filter.value[0], filter.value[1]);
+                    return `${field} ${operator} ? AND ?`;
+                }
+
+                values.push(filter.value);
+                return `${field} ${operator} ?`;
             });
             parts.push(`WHERE ${whereClauses.join(' AND ')}`);
         }
 
-        // ORDER BY clause
+        // ORDER BY clause - escape field identifiers and validate direction
         if (connector.sort && connector.sort.length > 0) {
             const orderBy = connector.sort
-                .map(sort => `\`${sort.field}\` ${sort.type.toUpperCase()}`)
+                .map(sort => `${escapeIdentifier(sort.field)} ${validateSortDirection(sort.type)}`)
                 .join(', ');
             parts.push(`ORDER BY ${orderBy}`);
         }
 
-        // LIMIT and OFFSET (MySQL uses LIMIT offset, row_count syntax)
+        // LIMIT and OFFSET - use parameters (MySQL uses LIMIT offset, row_count syntax)
         if (pageOptions.limit !== undefined) {
-            parts.push(`LIMIT ${pageOptions.offset || 0}, ${pageOptions.limit}`);
+            values.push(pageOptions.offset || 0, pageOptions.limit);
+            parts.push(`LIMIT ?, ?`);
         }
 
-        return parts.join(' ');
+        return { sql: parts.join(' '), values };
     }
 
-    const queryBuilderMap: Record<string, (pageOptions: PageOptions) => string> = {
+    const queryBuilderMap: Record<string, (pageOptions: PageOptions) => { sql: string; values: any[] }> = {
         table_query: buildSelectQuery,
         custom_query: buildCustomQuery,
         table_columns: buildGetColumnsQuery,
     };
 
-    function buildInsertQuery(data: any[]): string {
+    function buildInsertQuery(data: any[]): { sql: string; values: any[] } {
         if (!connector.config?.table) {
             throw new Error(`table property is required on the MySQL adapter's ${endpoint.id} endpoint`)
         }
@@ -181,34 +264,28 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
             throw new Error("Data array cannot be empty for insert operation");
         }
 
-        const table = connector.config.table;
+        const table = escapeIdentifier(connector.config.table);
         const fields = connector.fields.length > 0 ? connector.fields : Object.keys(data[0]);
 
         if (fields.length === 0) {
             throw new Error("No fields specified or inferred from data for insert operation");
         }
 
-        const values = data.map(row => {
-            const rowValues = fields.map(field => {
-                const value = row[field];
-                if (value === null || typeof value === 'undefined') {
-                    return 'NULL';
-                }
-                if (typeof value === 'number') {
-                    return value.toString();
-                }
-                return `'${value.toString().replace(/'/g, "''")}'`;
+        const escapedFields = fields.map(f => escapeIdentifier(f)).join(', ');
+        const values: any[] = [];
+
+        const valuePlaceholders = data.map(row => {
+            const rowPlaceholders = fields.map(field => {
+                values.push(row[field] ?? null);
+                return '?';
             });
-            return `(${rowValues.join(', ')})`;
+            return `(${rowPlaceholders.join(', ')})`;
         });
 
-        // Break down the query construction for clarity
-        const fieldList = fields.map(f => `\`${f}\``).join(', ');
-        const valueList = values.join(', ');
-        const query = `INSERT INTO \`${table}\` (${fieldList}) VALUES ${valueList}`;
+        const sql = `INSERT INTO ${table} (${escapedFields}) VALUES ${valuePlaceholders.join(', ')}`;
 
-        log("Generated query:", query); // Debug output to verify the string
-        return query;
+        log("Generated query:", sql, "with values count:", values.length);
+        return { sql, values };
     }
 
     return {
@@ -270,10 +347,10 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
 
             const query = queryBuilder(pageOptions);
 
-            log("Executing query:", query);
+            log("Executing query:", query.sql, "with values:", query.values);
 
             try {
-                const [rows] = await connection.execute<RowDataPacket[]>(query);
+                const [rows] = await connection.execute<RowDataPacket[]>(query.sql, query.values);
                 log("Downloaded rows:", rows.length);
                 return {
                     data: rows
@@ -288,9 +365,9 @@ function mysqlAdapter(connector: Connector, auth: AuthConfig): AdapterInstance {
                 throw new Error("Upload only supported for table_insert endpoint");
             }
             const query = buildInsertQuery(data);
-            log("Executing insert:", query);
+            log("Executing insert:", query.sql, "with values count:", query.values.length);
             try {
-                await connection.execute(query);
+                await connection.execute(query.sql, query.values);
                 log("Uploaded rows:", data.length);
             } catch (error: any) {
                 console.error("Upload error:", error.message);

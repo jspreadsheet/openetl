@@ -89,10 +89,10 @@ describe('PostgreSQL Adapter', () => {
   });
 
   /**
-   * Test 2: Query Construction and Download
-   * Tests SQL query building with filters, sorting, and pagination.
+   * Test 2: Query Construction and Download with Parameterized Queries
+   * Tests SQL query building with filters, sorting, and pagination using secure parameterized queries.
    */
-  it('downloads data with filters, sorting, and pagination', async () => {
+  it('downloads data with filters, sorting, and pagination using parameterized queries', async () => {
     adapter.connect!();
 
     const mockRows = [
@@ -102,8 +102,11 @@ describe('PostgreSQL Adapter', () => {
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
     const result = await adapter.download({ limit: 2, offset: 0 });
+
+    // Verify parameterized query format
     expect(mockPool.query).toHaveBeenCalledWith(
-      `SELECT id, name, email FROM "public"."users" WHERE status = 'active' ORDER BY name ASC LIMIT 2 OFFSET 0`
+      `SELECT "id", "name", "email" FROM "public"."users" WHERE "status" = $1 ORDER BY "name" ASC LIMIT $2 OFFSET $3`,
+      ['active', 2, 0]
     );
     expect(result.data).toEqual(mockRows);
   });
@@ -118,8 +121,11 @@ describe('PostgreSQL Adapter', () => {
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
     const result = await adapterNoFields.download({ limit: 1, offset: 0 });
+
+    // Verify parameterized query format with SELECT *
     expect(mockPool.query).toHaveBeenCalledWith(
-      `SELECT * FROM "public"."users" WHERE status = 'active' ORDER BY name ASC LIMIT 1 OFFSET 0`
+      `SELECT * FROM "public"."users" WHERE "status" = $1 ORDER BY "name" ASC LIMIT $2 OFFSET $3`,
+      ['active', 1, 0]
     );
     expect(result.data).toEqual(mockRows);
   });
@@ -135,19 +141,23 @@ describe('PostgreSQL Adapter', () => {
     customAdapter.connect!();
 
     const mockRows = [{ id: 6, name: 'Charlie' }];
-    mockPool.query.mockResolvedValueOnce();
+    mockPool.query.mockResolvedValueOnce({}); // SET search_path
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
     const result = await customAdapter.download({ limit: 10, offset: 0 });
-    expect(mockPool.query).toHaveBeenCalledWith('SELECT * FROM custom_table WHERE id > 5');
+
+    // First call should be SET search_path with parameterized value
+    expect(mockPool.query).toHaveBeenNthCalledWith(1, 'SET search_path TO $1', ['public']);
+    // Second call should be the custom query
+    expect(mockPool.query).toHaveBeenNthCalledWith(2, 'SELECT * FROM custom_table WHERE id > 5', []);
     expect(result.data).toEqual(mockRows);
   });
 
   /**
-   * Test 3: Upload
-   * Tests inserting data into a table.
+   * Test 3: Upload with Parameterized Queries
+   * Tests inserting data into a table using secure parameterized queries.
    */
-  it('uploads data successfully', async () => {
+  it('uploads data successfully with parameterized queries', async () => {
     const uploadConnector = { ...connector, endpoint_id: 'table_insert' };
     const uploadAdapter = postgresql(uploadConnector, auth);
 
@@ -161,12 +171,15 @@ describe('PostgreSQL Adapter', () => {
     mockPool.query.mockResolvedValueOnce({ rowCount: 2 });
 
     await expect(uploadAdapter.upload!(data)).resolves.toBeUndefined();
+
+    // Verify parameterized insert query
     expect(mockPool.query).toHaveBeenCalledWith(
-      `INSERT INTO "public"."users" ("id", "name", "email") VALUES (1, 'Alice', 'alice@example.com'), (2, 'Bob', 'bob@example.com')`
+      `INSERT INTO "public"."users" ("id", "name", "email") VALUES ($1, $2, $3), ($4, $5, $6)`,
+      [1, 'Alice', 'alice@example.com', 2, 'Bob', 'bob@example.com']
     );
   });
 
-  it('handles null values in upload', async () => {
+  it('handles null values in upload with parameterized queries', async () => {
     const uploadConnector = { ...connector, endpoint_id: 'table_insert' };
     const uploadAdapter = postgresql(uploadConnector, auth);
 
@@ -177,8 +190,11 @@ describe('PostgreSQL Adapter', () => {
     mockPool.query.mockResolvedValueOnce({ rowCount: 1 });
 
     await expect(uploadAdapter.upload!(data)).resolves.toBeUndefined();
+
+    // Verify parameterized insert with null value
     expect(mockPool.query).toHaveBeenCalledWith(
-      `INSERT INTO "public"."users" ("id", "name", "email") VALUES (1, NULL, 'alice@example.com')`
+      `INSERT INTO "public"."users" ("id", "name", "email") VALUES ($1, $2, $3)`,
+      [1, null, 'alice@example.com']
     );
   });
 
@@ -223,10 +239,10 @@ describe('PostgreSQL Adapter', () => {
   });
 
   /**
-   * Test 6: Complex Filters
-   * Tests handling of filter groups.
+   * Test 6: Complex Filters with Parameterized Queries
+   * Tests handling of multiple filters with secure parameterized queries.
    */
-  it('builds query with filter groups', async () => {
+  it('builds query with multiple filters using parameterized queries', async () => {
     const filters: Filter[] = [
       { field: 'status', operator: '=', value: 'active' },
       { field: 'role', operator: '=', value: 'admin' },
@@ -244,8 +260,121 @@ describe('PostgreSQL Adapter', () => {
     mockPool.query.mockResolvedValueOnce({ rows: mockRows });
 
     const result = await adapterWithFilterGroup.download({ limit: 1, offset: 0 });
+
+    // Verify parameterized query with multiple filters
     expect(mockPool.query).toHaveBeenCalledWith(
-      `SELECT id, name, email FROM "public"."users" WHERE status = 'active' AND role = 'admin' ORDER BY name ASC LIMIT 1 OFFSET 0`
+      `SELECT "id", "name", "email" FROM "public"."users" WHERE "status" = $1 AND "role" = $2 ORDER BY "name" ASC LIMIT $3 OFFSET $4`,
+      ['active', 'admin', 1, 0]
+    );
+    expect(result.data).toEqual(mockRows);
+  });
+
+  /**
+   * Test 7: SQL Injection Protection
+   * Tests that identifiers are properly escaped to prevent SQL injection.
+   */
+  it('escapes identifiers to prevent SQL injection', async () => {
+    const maliciousConnector = {
+      ...connector,
+      config: {
+        schema: 'public"; DROP TABLE users; --',
+        table: 'users',
+      },
+    };
+    const maliciousAdapter = postgresql(maliciousConnector, auth);
+
+    maliciousAdapter.connect!();
+
+    const mockRows = [{ id: 1 }];
+    mockPool.query.mockResolvedValueOnce({ rows: mockRows });
+
+    await maliciousAdapter.download({ limit: 1, offset: 0 });
+
+    // Verify that double quotes in identifier are escaped
+    expect(mockPool.query).toHaveBeenCalledWith(
+      expect.stringContaining('"public""; DROP TABLE users; --"'),
+      expect.any(Array)
+    );
+  });
+
+  it('validates operators to prevent injection', async () => {
+    const maliciousConnector = {
+      ...connector,
+      filters: [{
+        field: 'status',
+        operator: '; DROP TABLE users; --',
+        value: 'active',
+      }],
+    };
+    const maliciousAdapter = postgresql(maliciousConnector, auth);
+
+    await expect(maliciousAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
+      "Invalid SQL operator: '; DROP TABLE users; --'"
+    );
+  });
+
+  it('validates sort direction', async () => {
+    const maliciousConnector = {
+      ...connector,
+      sort: [{ field: 'name', type: '; DROP TABLE users; --' as any }],
+    };
+    const maliciousAdapter = postgresql(maliciousConnector, auth);
+
+    await expect(maliciousAdapter.download({ limit: 1, offset: 0 })).rejects.toThrow(
+      "Invalid sort direction: '; DROP TABLE users; --'"
+    );
+  });
+
+  /**
+   * Test 8: IN operator with array values
+   */
+  it('handles IN operator with array values', async () => {
+    const connectorWithIn = {
+      ...connector,
+      filters: [{
+        field: 'status',
+        operator: 'IN',
+        value: ['active', 'pending'],
+      }],
+    };
+    const adapterWithIn = postgresql(connectorWithIn, auth);
+
+    adapterWithIn.connect!();
+
+    const mockRows = [{ id: 1, name: 'Alice' }];
+    mockPool.query.mockResolvedValueOnce({ rows: mockRows });
+
+    await adapterWithIn.download({ limit: 10, offset: 0 });
+
+    expect(mockPool.query).toHaveBeenCalledWith(
+      expect.stringContaining('IN ($1, $2)'),
+      expect.arrayContaining(['active', 'pending'])
+    );
+  });
+
+  /**
+   * Test 9: Table columns endpoint with parameterized query
+   */
+  it('uses parameterized query for table_columns endpoint', async () => {
+    const columnsConnector = {
+      ...connector,
+      endpoint_id: 'table_columns',
+    };
+    const columnsAdapter = postgresql(columnsConnector, auth);
+
+    columnsAdapter.connect!();
+
+    const mockRows = [
+      { column_name: 'id', data_type: 'integer' },
+      { column_name: 'name', data_type: 'varchar' },
+    ];
+    mockPool.query.mockResolvedValueOnce({ rows: mockRows });
+
+    const result = await columnsAdapter.download({ limit: 100, offset: 0 });
+
+    expect(mockPool.query).toHaveBeenCalledWith(
+      'SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2',
+      ['public', 'users']
     );
     expect(result.data).toEqual(mockRows);
   });

@@ -6,6 +6,67 @@
 import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, BasicAuth, Filter } from 'openetl';
 import { MongoClient, Db, Collection } from 'mongodb';
 
+// MongoDB Security Functions
+
+/**
+ * List of allowed comparison operators for MongoDB queries
+ */
+const ALLOWED_OPERATORS = new Set(['=', '!=', '<>', '<', '>', '<=', '>=', 'IN', 'NOT IN']);
+
+/**
+ * Validates a collection name to prevent accessing system collections
+ * and ensure it doesn't contain dangerous characters
+ */
+function validateCollectionName(name: string): string {
+  if (!name || typeof name !== 'string') {
+    throw new Error('Invalid collection name: must be a non-empty string');
+  }
+
+  // Check for dangerous patterns
+  if (name.startsWith('system.')) {
+    throw new Error('Invalid collection name: cannot access system collections');
+  }
+
+  // Check for control characters
+  if (/[\x00-\x1f\x7f]/.test(name)) {
+    throw new Error('Invalid collection name: contains control characters');
+  }
+
+  // Check for $ prefix which is reserved
+  if (name.startsWith('$')) {
+    throw new Error('Invalid collection name: cannot start with $');
+  }
+
+  return name;
+}
+
+/**
+ * Validates field names to prevent NoSQL injection via field names
+ */
+function validateFieldName(name: string): string {
+  if (!name || typeof name !== 'string') {
+    throw new Error('Invalid field name: must be a non-empty string');
+  }
+
+  // Check for $ operator injection (unless it's a valid MongoDB operator)
+  if (name.includes('$') && !name.startsWith('$')) {
+    throw new Error('Invalid field name: cannot contain $ in the middle of field name');
+  }
+
+  return name;
+}
+
+/**
+ * Validates that an operator is in the allowed list
+ */
+function validateOperator(operator: string): string {
+  const normalized = operator.trim().toUpperCase();
+  if (!ALLOWED_OPERATORS.has(normalized)) {
+    throw new Error(`Invalid operator: '${operator}'`);
+  }
+  return normalized;
+}
+
 const MongoDBAdapter: DatabaseAdapter = {
   id: "mongodb",
   name: "MongoDB Database Adapter",
@@ -110,19 +171,30 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
     // Build filters
     if (connector.filters && connector.filters.length > 0) {
       const processFilter = (filter: Filter): any => {
-        switch (filter.operator) {
-          case '=': return { [filter.field]: filter.value };
-          case '>': return { [filter.field]: { $gt: filter.value } };
-          case '<': return { [filter.field]: { $lt: filter.value } };
-          case '>=': return { [filter.field]: { $gte: filter.value } };
-          case '<=': return { [filter.field]: { $lte: filter.value } };
-          case '!=': return { [filter.field]: { $ne: filter.value } };
-          default: return { [filter.field]: filter.value };
+        // Validate field name to prevent NoSQL injection
+        const field = validateFieldName(filter.field);
+        const operator = validateOperator(filter.operator);
+
+        switch (operator) {
+          case '=': return { [field]: filter.value };
+          case '>': return { [field]: { $gt: filter.value } };
+          case '<': return { [field]: { $lt: filter.value } };
+          case '>=': return { [field]: { $gte: filter.value } };
+          case '<=': return { [field]: { $lte: filter.value } };
+          case '!=':
+          case '<>': return { [field]: { $ne: filter.value } };
+          case 'IN': return { [field]: { $in: Array.isArray(filter.value) ? filter.value : [filter.value] } };
+          case 'NOT IN': return { [field]: { $nin: Array.isArray(filter.value) ? filter.value : [filter.value] } };
+          default: return { [field]: filter.value };
         }
       };
 
       connector.filters.forEach(filter => {
-        Object.assign(query, processFilter(filter));
+        // Skip FilterGroup for now (only process simple filters)
+        if ('op' in filter) {
+          throw new Error('FilterGroup is not yet supported in MongoDB adapter');
+        }
+        Object.assign(query, processFilter(filter as Filter));
       });
     }
 
@@ -133,7 +205,9 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
     if (connector.fields && connector.fields.length > 0) {
       const projection: any = {};
       connector.fields.forEach(field => {
-        projection[field] = 1;
+        // Validate field name
+        const validatedField = validateFieldName(field);
+        projection[validatedField] = 1;
       });
       return projection;
     }
@@ -144,7 +218,13 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
     if (connector.sort && connector.sort.length > 0) {
       const sort: any = {};
       connector.sort.forEach(s => {
-        sort[s.field] = s.type === 'asc' ? 1 : -1;
+        // Validate field name and sort direction
+        const validatedField = validateFieldName(s.field);
+        const direction = s.type.toLowerCase();
+        if (direction !== 'asc' && direction !== 'desc') {
+          throw new Error(`Invalid sort direction: '${s.type}'`);
+        }
+        sort[validatedField] = direction === 'asc' ? 1 : -1;
       });
       return sort;
     }
@@ -208,7 +288,10 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error(`table property is required on the MongoDB adapter's ${endpoint.id} endpoint`);
       }
 
-      if ( pageOptions.offset && Number(pageOptions.offset) < 0 ) {
+      // Validate collection name
+      const collectionName = validateCollectionName(connector.config.table);
+
+      if (pageOptions.offset && Number(pageOptions.offset) < 0) {
         pageOptions.offset = 0;
       }
 
@@ -219,7 +302,7 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
       log("Executing query:", JSON.stringify(query));
 
       try {
-        const collection = db.collection(connector.config!.table);
+        const collection = db.collection(collectionName);
         let cursor = collection.find(query);
 
         if (projection) cursor = cursor.project(projection);
@@ -247,10 +330,13 @@ function mongodb(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error(`table property is required on the MongoDB adapter's ${endpoint.id} endpoint`);
       }
 
+      // Validate collection name
+      const collectionName = validateCollectionName(connector.config.table);
+
       log("Uploading documents:", data.length);
 
       try {
-        const collection = db.collection(connector.config!.table);
+        const collection = db.collection(collectionName);
         const result = await collection.insertMany(data);
         log("Inserted documents:", result.insertedCount);
       } catch (error: any) {
