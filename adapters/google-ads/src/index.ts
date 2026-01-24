@@ -5,7 +5,7 @@
 
 import axios from 'axios';
 
-import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, OAuth2Auth } from 'openetl';
+import { DatabaseAdapter, Connector, AdapterInstance, AuthConfig, OAuth2Auth, Filter } from 'openetl';
 
 const baseUrl = "https://googleads.googleapis.com/v19";
 
@@ -211,10 +211,14 @@ function googleAds(connector: Connector, auth: AuthConfig): AdapterInstance {
 
     // WHERE clause
     if (connector.filters && connector.filters.length > 0) {
-      const whereClauses = connector.filters.map(filter => {
-        return `${filter.field} ${filter.operator} '${filter.value}'`;
-      });
-      parts.push(`WHERE ${whereClauses.join(' AND ')}`);
+      const whereClauses = connector.filters
+        .filter((f): f is Filter => 'field' in f)
+        .map(filter => {
+          return `${filter.field} ${filter.operator} '${filter.value}'`;
+        });
+      if (whereClauses.length > 0) {
+        parts.push(`WHERE ${whereClauses.join(' AND ')}`);
+      }
     }
 
     // ORDER BY clause

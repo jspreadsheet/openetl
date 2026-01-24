@@ -3,7 +3,7 @@
  * https://componade.com/openetl
  */
 
-import { Connector, AdapterInstance, AuthConfig, HttpAdapter } from 'openetl';
+import { Connector, AdapterInstance, AuthConfig, HttpAdapter, Filter } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
 export interface TwitterTweet {
@@ -35,6 +35,7 @@ const TwitterAdapter: HttpAdapter = {
   base_url: "https://api.twitter.com/2",
   config: [
     {
+      id: 'headers',
       name: 'headers',
       required: false,
       default: {},

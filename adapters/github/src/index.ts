@@ -1,4 +1,4 @@
-import { Connector, AdapterInstance, AuthConfig, HttpAdapter } from 'openetl';
+import { Connector, AdapterInstance, AuthConfig, HttpAdapter, Filter } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
 const GitHubAdapter: HttpAdapter = {
@@ -8,9 +8,9 @@ const GitHubAdapter: HttpAdapter = {
   action: ["download", "upload", "sync"],
   base_url: "https://api.github.com",
   config: [
-    { name: 'headers', required: false, default: {} },
-    { name: 'owner', required: false },
-    { name: 'repo', required: false },
+    { id: 'headers', name: 'headers', required: false, default: {} },
+    { id: 'owner', name: 'owner', required: false },
+    { id: 'repo', name: 'repo', required: false },
   ],
   credential_type: "api_key",
   metadata: {

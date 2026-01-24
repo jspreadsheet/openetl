@@ -8,7 +8,7 @@
  * Fix: Add batch upload support for efficiency.
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter } from 'openetl';
 
 import axios, { isAxiosError } from 'axios';
 
@@ -369,11 +369,13 @@ function hubspot(connector: Connector, auth: AuthConfig): AdapterInstance {
 
         if (connector.filters && connector.filters.length > 0) {
             body.filterGroups = [{
-                filters: connector.filters.map(filter => ({
-                    propertyName: filter.field,
-                    operator: mapOperator(filter.operator),
-                    value: filter.value,
-                }))
+                filters: connector.filters
+                    .filter((f): f is Filter => 'field' in f)  // Skip FilterGroup for now
+                    .map(filter => ({
+                        propertyName: filter.field,
+                        operator: mapOperator(filter.operator),
+                        value: filter.value,
+                    }))
             }];
         }
 

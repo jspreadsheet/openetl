@@ -5,7 +5,7 @@
  * Xero API Reference: https://developer.xero.com/documentation/
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter } from 'openetl';
 import axios, { AxiosRequestConfig, isAxiosError } from 'axios';
 
 const maxItemsPerPage = 100;
@@ -307,7 +307,7 @@ function xero(connector: Connector, auth: AuthConfig): AdapterInstance {
     }
 
     if (connector.filters && connector.filters.length > 0) {
-      const filters = connector.filters;
+      const filters = connector.filters.filter((f): f is Filter => 'field' in f);
 
       const where = [];
 

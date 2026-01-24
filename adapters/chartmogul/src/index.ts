@@ -3,7 +3,7 @@
  * https://componade.com/openetl
  */
 
-import { HttpAdapter, Connector, AuthConfig, ApiKeyAuth, AdapterInstance } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, ApiKeyAuth, AdapterInstance, Filter } from 'openetl';
 import axios from 'axios';
 
 const maxItemsPerPage = 200;
@@ -193,15 +193,19 @@ function chartmogul(connector: Connector, auth: AuthConfig): AdapterInstance {
   function buildQueryParams(): Record<string, any> {
     const params: Record<string, any> = {};
     if (connector.filters && connector.filters.length > 0) {
-      connector.filters.forEach((filter) => {
-        if ('op' in filter) {
-            throw new Error('Filter groups are not supported in ChartMogul adapter; use flat filters');
-        }
+      // Check for FilterGroup and throw error
+      const hasFilterGroup = connector.filters.some(f => 'op' in f);
+      if (hasFilterGroup) {
+        throw new Error('Filter groups are not supported in ChartMogul adapter; use flat filters');
+      }
 
-        if (filter.operator === '=') {
-          params[filter.field] = filter.value;
-        }
-      });
+      connector.filters
+        .filter((f): f is Filter => 'field' in f)
+        .forEach((filter) => {
+          if (filter.operator === '=') {
+            params[filter.field] = filter.value;
+          }
+        });
     }
     return params;
   }

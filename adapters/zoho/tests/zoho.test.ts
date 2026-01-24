@@ -203,7 +203,7 @@ describe('Zoho Adapter', () => {
 
         await expect(localAdapter.upload!(data)).resolves.toBeUndefined();
         expect(mockedAxios.post).toHaveBeenCalledWith(
-            'https://www.zohoapis.com/crm/v3/Leads',
+            'https://www.zohoapis.com/crm/v7/Leads',
             { data },
             expect.objectContaining({
                 headers: {

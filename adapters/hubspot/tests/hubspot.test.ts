@@ -234,7 +234,7 @@ describe('HubSpot Adapter', () => {
         expect(mockedAxios.post).toHaveBeenCalledWith(
             expect.any(String),
             expect.objectContaining({
-                properties: 'firstname,lastname,email',
+                properties: ['firstname', 'lastname', 'email'],
                 filterGroups: [{
                     filters: [{
                         propertyName: 'lifecyclestage',

@@ -4,7 +4,7 @@
  *
  */
 
-import { HttpAdapter, Connector, AuthConfig, AdapterInstance } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, AdapterInstance, Filter } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
 const maxItemsPerPage = 100;

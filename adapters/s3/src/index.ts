@@ -18,6 +18,7 @@ const S3Adapter: HttpAdapter = {
   base_url: "https://s3.amazonaws.com",
   config: [
     {
+      id: 'bucket',
       name: 'bucket',
       required: true,
     },
@@ -124,17 +125,23 @@ function s3(connector: Connector, auth: AuthConfig): AdapterInstance {
         throw new Error(`Number of items per page exceeds the maximum allowed by the ${endpoint.id} endpoint of the S3 adapter (${maxItemsPerPage})`);
       }
 
-      const prefix = (connector.filters?.find(f => 'field' in f && f.field === 'prefix' && f.operator === '=') as Filter | undefined)?.value;
+      const prefixFilter = connector.filters?.find(f => 'field' in f && f.field === 'prefix' && f.operator === '=') as Filter | undefined;
+      const prefix = prefixFilter?.value;
 
-      if (typeof prefix === 'number') {
-        throw new Error('The "prefix" filter, if defined, must be a string');
+      // Ensure prefix is a string or undefined
+      let prefixString: string | undefined;
+      if (prefix !== undefined && prefix !== null) {
+        if (typeof prefix !== 'string') {
+          throw new Error('The "prefix" filter, if defined, must be a string');
+        }
+        prefixString = prefix;
       }
 
       const command = new ListObjectsV2Command({
         Bucket: bucket,
         MaxKeys: limit,
         ContinuationToken: offset ? String(offset) : undefined,
-        Prefix: prefix,
+        Prefix: prefixString,
       });
 
       const response = await s3Client.send(command);

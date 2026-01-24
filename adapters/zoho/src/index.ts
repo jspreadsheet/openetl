@@ -7,7 +7,7 @@
  * - Implement rate limit handling based on Zoho's limits (varies by plan)
  */
 
-import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance } from 'openetl';
+import { HttpAdapter, Connector, AuthConfig, OAuth2Auth, AdapterInstance, Filter } from 'openetl';
 import axios, { isAxiosError } from 'axios';
 
 const maxItemsPerPageforGetRoutes = 200;
@@ -350,9 +350,14 @@ function zoho(connector: Connector, auth: AuthConfig): AdapterInstance {
         if (connector.fields.length > 0) params.fields = connector.fields.join(',');
         if (connector.filters && connector.filters.length > 0) {
             // Zoho uses a different filtering approach with criteria
-            params.criteria = connector.filters.map(filter => {
-                return `(${filter.field}:${mapOperator(filter.operator)}:${filter.value})`;
-            }).join(' and ');
+            const filterClauses = connector.filters
+                .filter((f): f is Filter => 'field' in f)
+                .map(filter => {
+                    return `(${filter.field}:${mapOperator(filter.operator)}:${filter.value})`;
+                });
+            if (filterClauses.length > 0) {
+                params.criteria = filterClauses.join(' and ');
+            }
         }
         if (connector.sort && connector.sort.length > 0) {
             params.sort_by = connector.sort[0].field;
