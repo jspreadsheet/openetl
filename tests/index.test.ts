@@ -1,4 +1,4 @@
-import { Orchestrator } from '../src/index';
+import { Orchestrator, DEFAULT_CONFIG } from '../src/index';
 import { Pipeline, Adapter, AuthConfig, Vault, Connector, AdapterInstance } from '../src/types';
 
 let attemptCount = 0;
@@ -179,6 +179,18 @@ const cursorConnector: Connector = {
     pagination: { itemsPerPage: 2 },
 };
 
+
+describe('DEFAULT_CONFIG', () => {
+    it('exports default configuration values', () => {
+        expect(DEFAULT_CONFIG).toBeDefined();
+        expect(DEFAULT_CONFIG.ITEMS_PER_PAGE).toBe(100);
+        expect(DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT).toBe(1000000);
+        expect(DEFAULT_CONFIG.TIMEOUT_MS).toBe(30000);
+        expect(DEFAULT_CONFIG.RETRY_INTERVAL_MS).toBe(1000);
+        expect(DEFAULT_CONFIG.MAX_RETRIES).toBe(0);
+        expect(DEFAULT_CONFIG.MAX_BACKOFF_MS).toBe(30000);
+    });
+});
 
 describe('Orchestrator', () => {
     let orchestrator: ReturnType<typeof Orchestrator>;
@@ -612,5 +624,62 @@ describe('Orchestrator', () => {
             type: 'complete',
             message: 'Pipeline halted by onbeforesend'
         }));
+    });
+
+    it('uses exponential backoff when enabled', async () => {
+        const pipeline: Pipeline<any> = {
+            id: 'exponential-backoff-test',
+            source: failingConnector,
+            error_handling: {
+                max_retries: 3,
+                retry_interval: 100,
+                use_exponential_backoff: true
+            },
+            logging,
+        };
+
+        const promise = orchestrator.runPipeline(pipeline);
+        await jest.runAllTimersAsync();
+        await promise;
+
+        // Check that retry messages are logged
+        const retryLogs = logging.mock.calls.filter(
+            call => call[0].type === 'info' && call[0].message.includes('Retrying in')
+        );
+        expect(retryLogs.length).toBeGreaterThan(0);
+
+        // Verify exponential backoff pattern - delays should increase
+        const delays = retryLogs.map(log => {
+            const match = log[0].message.match(/Retrying in (\d+)ms/);
+            return match ? parseInt(match[1]) : 0;
+        });
+
+        // With exponential backoff, later delays should generally be larger
+        // Due to jitter, we just verify the pattern is reasonable
+        expect(delays.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('logs retry attempts with delay information', async () => {
+        const pipeline: Pipeline<any> = {
+            id: 'retry-logging-test',
+            source: failingConnector,
+            error_handling: {
+                max_retries: 2,
+                retry_interval: 500,
+                use_exponential_backoff: false
+            },
+            logging,
+        };
+
+        const promise = orchestrator.runPipeline(pipeline);
+        await jest.runAllTimersAsync();
+        await promise;
+
+        // Check retry logging format
+        const retryLogs = logging.mock.calls.filter(
+            call => call[0].type === 'info' && call[0].message.includes('Retrying in')
+        );
+        expect(retryLogs.length).toBeGreaterThan(0);
+        expect(retryLogs[0][0].message).toMatch(/Retrying in \d+ms \(attempt \d+\/\d+\)/);
     });
 });

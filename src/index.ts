@@ -27,11 +27,54 @@ async function delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Default configuration values
-const DEFAULT_CONFIG = {
+/**
+ * Default configuration values for the orchestrator
+ */
+export const DEFAULT_CONFIG = {
+    ITEMS_PER_PAGE: 100,
     TOTAL_ITEMS_LIMIT: 1000000,
     TIMEOUT_MS: 30000,
+    RETRY_INTERVAL_MS: 1000,
+    MAX_RETRIES: 0,
+    MAX_BACKOFF_MS: 30000,
 } as const;
+
+/**
+ * Configuration options for the Orchestrator
+ */
+export interface OrchestratorConfig {
+    /** Default number of items per page for pagination */
+    itemsPerPage?: number;
+    /** Maximum total items to fetch (default: 1,000,000) */
+    totalItemsLimit?: number;
+    /** Download timeout in milliseconds (default: 30,000) */
+    timeoutMs?: number;
+    /** Base retry interval in milliseconds (default: 1,000) */
+    retryIntervalMs?: number;
+    /** Maximum number of retries (default: 0) */
+    maxRetries?: number;
+    /** Maximum backoff delay in milliseconds (default: 30,000) */
+    maxBackoffMs?: number;
+}
+
+/**
+ * Calculates exponential backoff delay with jitter
+ * @param attempt - Current retry attempt (0-indexed)
+ * @param baseDelay - Base delay in milliseconds
+ * @param maxDelay - Maximum delay cap in milliseconds
+ * @returns Calculated delay with jitter
+ */
+function calculateBackoff(
+    attempt: number,
+    baseDelay: number = DEFAULT_CONFIG.RETRY_INTERVAL_MS,
+    maxDelay: number = DEFAULT_CONFIG.MAX_BACKOFF_MS
+): number {
+    // Exponential backoff: baseDelay * 2^attempt
+    const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+    // Add jitter: random value between 0-30% of the delay
+    const jitter = Math.random() * 0.3 * exponentialDelay;
+    return Math.floor(exponentialDelay + jitter);
+}
 
 async function fetchData(
     sourceAdapter: ReturnType<Adapter>,
@@ -41,7 +84,8 @@ async function fetchData(
     timeoutMs: number,
     errorHandling: {
         max_retries: number,
-        retry_interval: number
+        retry_interval: number,
+        use_exponential_backoff?: boolean
     },
     log: (event: PipelineEvent) => void,
 ) {
@@ -51,7 +95,13 @@ async function fetchData(
 
     do {
         if (attempt > 0) {
-            await delay(errorHandling.retry_interval);
+            // Use exponential backoff with jitter if enabled, otherwise use fixed interval
+            const delayMs = errorHandling.use_exponential_backoff
+                ? calculateBackoff(attempt - 1, errorHandling.retry_interval)
+                : errorHandling.retry_interval;
+
+            log({ type: 'info', message: `Retrying in ${delayMs}ms (attempt ${attempt + 1}/${errorHandling.max_retries + 1})` });
+            await delay(delayMs);
         }
 
         // Check for timeout

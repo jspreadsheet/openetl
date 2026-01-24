@@ -22,7 +22,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.validatePipeline = exports.AdapterError = void 0;
+exports.validatePipeline = exports.AdapterError = exports.DEFAULT_CONFIG = void 0;
 exports.Orchestrator = Orchestrator;
 const transform_1 = __importDefault(__webpack_require__(626));
 /**
@@ -33,16 +33,41 @@ const transform_1 = __importDefault(__webpack_require__(626));
 async function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-// Default configuration values
-const DEFAULT_CONFIG = {
+/**
+ * Default configuration values for the orchestrator
+ */
+exports.DEFAULT_CONFIG = {
+    ITEMS_PER_PAGE: 100,
     TOTAL_ITEMS_LIMIT: 1000000,
     TIMEOUT_MS: 30000,
+    RETRY_INTERVAL_MS: 1000,
+    MAX_RETRIES: 0,
+    MAX_BACKOFF_MS: 30000,
 };
+/**
+ * Calculates exponential backoff delay with jitter
+ * @param attempt - Current retry attempt (0-indexed)
+ * @param baseDelay - Base delay in milliseconds
+ * @param maxDelay - Maximum delay cap in milliseconds
+ * @returns Calculated delay with jitter
+ */
+function calculateBackoff(attempt, baseDelay = exports.DEFAULT_CONFIG.RETRY_INTERVAL_MS, maxDelay = exports.DEFAULT_CONFIG.MAX_BACKOFF_MS) {
+    // Exponential backoff: baseDelay * 2^attempt
+    const exponentialDelay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay);
+    // Add jitter: random value between 0-30% of the delay
+    const jitter = Math.random() * 0.3 * exponentialDelay;
+    return Math.floor(exponentialDelay + jitter);
+}
 async function fetchData(sourceAdapter, itemsPerPage, pageOffset, downloadStartTime, timeoutMs, errorHandling, log) {
     let result, lastError, attempt = 0;
     do {
         if (attempt > 0) {
-            await delay(errorHandling.retry_interval);
+            // Use exponential backoff with jitter if enabled, otherwise use fixed interval
+            const delayMs = errorHandling.use_exponential_backoff
+                ? calculateBackoff(attempt - 1, errorHandling.retry_interval)
+                : errorHandling.retry_interval;
+            log({ type: 'info', message: `Retrying in ${delayMs}ms (attempt ${attempt + 1}/${errorHandling.max_retries + 1})` });
+            await delay(delayMs);
         }
         // Check for timeout
         if (Date.now() - downloadStartTime >= timeoutMs) {
@@ -133,8 +158,8 @@ async function getDataSerially(pipeline, sourceAdapter, errorHandling, log) {
     const minIntervalMs = rl.requests_per_second === Infinity
         ? 0
         : 1000 / rl.requests_per_second;
-    const totalItemsToFetch = pipeline.source.limit ?? DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
-    const timeoutMs = pipeline.source.timeout ?? DEFAULT_CONFIG.TIMEOUT_MS;
+    const totalItemsToFetch = pipeline.source.limit ?? exports.DEFAULT_CONFIG.TOTAL_ITEMS_LIMIT;
+    const timeoutMs = pipeline.source.timeout ?? exports.DEFAULT_CONFIG.TIMEOUT_MS;
     const downloadStartTime = Date.now();
     const endpoint = getEndpoint(pipeline.source, sourceAdapter);
     if (!endpoint) {
