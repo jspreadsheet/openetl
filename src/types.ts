@@ -14,6 +14,103 @@ function isAxiosError(error: unknown): error is AxiosError {
     );
 }
 
+// Error handling types
+export type AdapterErrorCode =
+    | 'CONNECTION_FAILED'
+    | 'AUTHENTICATION_FAILED'
+    | 'VALIDATION_FAILED'
+    | 'DOWNLOAD_FAILED'
+    | 'UPLOAD_FAILED'
+    | 'TIMEOUT'
+    | 'RATE_LIMITED'
+    | 'NOT_FOUND'
+    | 'INVALID_CONFIG'
+    | 'UNKNOWN';
+
+/**
+ * Standardized error class for adapter operations with retry support and context
+ */
+export class AdapterError extends Error {
+    public readonly code: AdapterErrorCode;
+    public readonly retryable: boolean;
+    public readonly context?: Record<string, unknown>;
+    public readonly cause?: Error;
+
+    constructor(
+        message: string,
+        code: AdapterErrorCode = 'UNKNOWN',
+        retryable: boolean = false,
+        context?: Record<string, unknown>,
+        cause?: Error
+    ) {
+        super(message);
+        this.name = 'AdapterError';
+        this.code = code;
+        this.retryable = retryable;
+        this.context = context;
+        this.cause = cause;
+
+        // Maintains proper stack trace for where error was thrown (V8 engines)
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, AdapterError);
+        }
+    }
+
+    /**
+     * Creates an AdapterError from an unknown error type
+     */
+    static from(
+        error: unknown,
+        code: AdapterErrorCode = 'UNKNOWN',
+        retryable: boolean = false,
+        context?: Record<string, unknown>
+    ): AdapterError {
+        if (error instanceof AdapterError) {
+            return error;
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        const cause = error instanceof Error ? error : undefined;
+
+        // Detect specific error types from axios or other sources
+        if (isAxiosError(error)) {
+            const status = error.response?.status;
+            if (status === 401 || status === 403) {
+                return new AdapterError(message, 'AUTHENTICATION_FAILED', false, context, cause);
+            }
+            if (status === 404) {
+                return new AdapterError(message, 'NOT_FOUND', false, context, cause);
+            }
+            if (status === 429) {
+                return new AdapterError(message, 'RATE_LIMITED', true, context, cause);
+            }
+            if (status && status >= 500) {
+                return new AdapterError(message, code, true, context, cause);
+            }
+        }
+
+        return new AdapterError(message, code, retryable, context, cause);
+    }
+
+    /**
+     * Serializes the error for logging or transmission
+     */
+    toJSON(): Record<string, unknown> {
+        return {
+            name: this.name,
+            message: this.message,
+            code: this.code,
+            retryable: this.retryable,
+            context: this.context,
+            cause: this.cause ? {
+                name: this.cause.name,
+                message: this.cause.message
+            } : undefined,
+            stack: this.stack
+        };
+    }
+}
+
 // Auth Types
 export type BaseAuth = {
     id: string;
@@ -98,6 +195,7 @@ export type Helpers = {
 export interface BaseAdapter {
     id: string;
     name: string;
+    type?: "http" | "database" | "file";
     category?: string;
     image?: string;
     action: Array<"download" | "upload" | "sync">;
@@ -106,6 +204,7 @@ export interface BaseAdapter {
     metadata?: {
         description?: string;
         provider?: string;
+        version?: string;
         [key: string]: any;
     };
     pagination?: AdapterPagination;
@@ -151,7 +250,15 @@ export interface DatabaseAdapter extends BaseAdapter {
 export type Filter = {
     field: string;
     operator: string;
-    value: string | number;
+    value: string | number | boolean | null | Array<string | number>;
+};
+
+/**
+ * Complex filter conditions with AND/OR logic for nested filtering
+ */
+export type FilterGroup = {
+    op: "AND" | "OR";
+    filters: Array<Filter | FilterGroup>;
 };
 
 export type BaseTransformationOption = {
@@ -254,7 +361,7 @@ export interface Connector {
         [key: string]: any;
     };
     fields: string[];
-    filters?: Array<Filter>;
+    filters?: Array<Filter | FilterGroup>;
     transform?: Transformation[];
     sort?: Sort[];
     limit?: number;                    // Total items to fetch, defaults to 1M in core.ts if unset
@@ -296,6 +403,25 @@ export interface Pipeline<T = object> {
     };
 }
 
+/**
+ * Validation result returned by adapter's validate method
+ */
+export interface ValidationResult {
+    valid: boolean;
+    message?: string;
+    details?: Record<string, unknown>;
+}
+
+/**
+ * Schema information returned by adapter's getSchema method
+ */
+export interface SchemaInfo {
+    fields: string[];
+    types?: Record<string, string>;
+    primaryKey?: string | string[];
+    required?: string[];
+}
+
 export interface AdapterInstance {
     getConfig: () => HttpAdapter | DatabaseAdapter;
     connect?(): Promise<void>;
@@ -303,11 +429,28 @@ export interface AdapterInstance {
     download(pageOptions: { limit?: number; offset?: number | string }): Promise<{
         data: any[];
         options?: {
-            [key: string]: any; // Allow future extensions
+            nextOffset?: string | number;
+            totalCount?: number;
+            [key: string]: any;
         };
     }>;
     upload?(data: any[]): Promise<void>;
     getOauthPermissionUrl?: (redirectUrl?: string) => string;
+
+    /**
+     * Validates the adapter configuration and connection
+     */
+    validate?(): Promise<ValidationResult>;
+
+    /**
+     * Returns schema information for the current endpoint/table
+     */
+    getSchema?(): Promise<SchemaInfo>;
+
+    /**
+     * Returns the total count of records for the current query
+     */
+    count?(): Promise<number>;
 }
 
 export type Adapter = (connector: Connector, auth: AuthConfig) => AdapterInstance;
@@ -315,3 +458,115 @@ export type Adapter = (connector: Connector, auth: AuthConfig) => AdapterInstanc
 export type Adapters = {
     [key: string]: Adapter;
 };
+
+/**
+ * Result of pipeline validation
+ */
+export interface PipelineValidationResult {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+}
+
+/**
+ * Validates a pipeline configuration before execution
+ * @param pipeline - Pipeline configuration to validate
+ * @param adapters - Available adapters
+ * @param vault - Credential vault
+ * @returns Validation result with errors and warnings
+ */
+export function validatePipeline<T>(
+    pipeline: Pipeline<T>,
+    adapters: Adapters,
+    vault: Vault
+): PipelineValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Validate pipeline has source or data
+    if (!pipeline.source && !pipeline.data) {
+        errors.push('Pipeline must have either a source or data');
+    }
+
+    // Validate source configuration
+    if (pipeline.source) {
+        const { adapter_id, endpoint_id, credential_id } = pipeline.source;
+
+        // Check adapter exists
+        if (!adapters[adapter_id]) {
+            errors.push(`Source adapter '${adapter_id}' not found`);
+        }
+
+        // Check credentials exist
+        if (!vault[credential_id]) {
+            errors.push(`Source credentials '${credential_id}' not found in vault`);
+        }
+
+        // Validate endpoint_id is provided
+        if (!endpoint_id) {
+            errors.push('Source endpoint_id is required');
+        }
+
+        // Warn if no fields specified
+        if (!pipeline.source.fields || pipeline.source.fields.length === 0) {
+            warnings.push('No fields specified for source - will use defaults if available');
+        }
+
+        // Validate filters if present
+        if (pipeline.source.filters) {
+            pipeline.source.filters.forEach((filter, index) => {
+                if ('field' in filter) {
+                    if (!filter.field) {
+                        errors.push(`Filter at index ${index} has empty field`);
+                    }
+                    if (!filter.operator) {
+                        errors.push(`Filter at index ${index} has empty operator`);
+                    }
+                }
+            });
+        }
+    }
+
+    // Validate target configuration
+    if (pipeline.target) {
+        const { adapter_id, endpoint_id, credential_id } = pipeline.target;
+
+        // Check adapter exists
+        if (!adapters[adapter_id]) {
+            errors.push(`Target adapter '${adapter_id}' not found`);
+        }
+
+        // Check credentials exist
+        if (!vault[credential_id]) {
+            errors.push(`Target credentials '${credential_id}' not found in vault`);
+        }
+
+        // Validate endpoint_id is provided
+        if (!endpoint_id) {
+            errors.push('Target endpoint_id is required');
+        }
+    }
+
+    // Validate error_handling if present
+    if (pipeline.error_handling) {
+        if (pipeline.error_handling.max_retries < 0) {
+            errors.push('max_retries must be non-negative');
+        }
+        if (pipeline.error_handling.retry_interval < 0) {
+            errors.push('retry_interval must be non-negative');
+        }
+    }
+
+    // Validate rate_limiting if present
+    if (pipeline.rate_limiting) {
+        if (pipeline.rate_limiting.requests_per_second <= 0) {
+            errors.push('requests_per_second must be positive');
+        }
+    }
+
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings
+    };
+}

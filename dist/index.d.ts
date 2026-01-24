@@ -16,4 +16,4 @@ declare function Orchestrator(vault: Vault, availableAdapters: Adapters): {
     }>;
 };
 export { Orchestrator };
-export { DatabaseAdapter, BasicAuth, HttpAdapter, Connector, AuthConfig, OAuth2Auth, ApiKeyAuth, AdapterInstance, Filter } from './types';
+export { DatabaseAdapter, BasicAuth, HttpAdapter, Connector, AuthConfig, OAuth2Auth, ApiKeyAuth, AdapterInstance, Filter, FilterGroup, AdapterError, AdapterErrorCode, ValidationResult, SchemaInfo, PipelineValidationResult, validatePipeline } from './types';

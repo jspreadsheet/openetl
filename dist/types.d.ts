@@ -1,3 +1,22 @@
+export type AdapterErrorCode = 'CONNECTION_FAILED' | 'AUTHENTICATION_FAILED' | 'VALIDATION_FAILED' | 'DOWNLOAD_FAILED' | 'UPLOAD_FAILED' | 'TIMEOUT' | 'RATE_LIMITED' | 'NOT_FOUND' | 'INVALID_CONFIG' | 'UNKNOWN';
+/**
+ * Standardized error class for adapter operations with retry support and context
+ */
+export declare class AdapterError extends Error {
+    readonly code: AdapterErrorCode;
+    readonly retryable: boolean;
+    readonly context?: Record<string, unknown>;
+    readonly cause?: Error;
+    constructor(message: string, code?: AdapterErrorCode, retryable?: boolean, context?: Record<string, unknown>, cause?: Error);
+    /**
+     * Creates an AdapterError from an unknown error type
+     */
+    static from(error: unknown, code?: AdapterErrorCode, retryable?: boolean, context?: Record<string, unknown>): AdapterError;
+    /**
+     * Serializes the error for logging or transmission
+     */
+    toJSON(): Record<string, unknown>;
+}
 export type BaseAuth = {
     id: string;
     type?: "api_key" | "oauth2" | "basic";
@@ -69,6 +88,7 @@ export type Helpers = {
 export interface BaseAdapter {
     id: string;
     name: string;
+    type?: "http" | "database" | "file";
     category?: string;
     image?: string;
     action: Array<"download" | "upload" | "sync">;
@@ -77,6 +97,7 @@ export interface BaseAdapter {
     metadata?: {
         description?: string;
         provider?: string;
+        version?: string;
         [key: string]: any;
     };
     pagination?: AdapterPagination;
@@ -113,7 +134,14 @@ export interface DatabaseAdapter extends BaseAdapter {
 export type Filter = {
     field: string;
     operator: string;
-    value: string | number;
+    value: string | number | boolean | null | Array<string | number>;
+};
+/**
+ * Complex filter conditions with AND/OR logic for nested filtering
+ */
+export type FilterGroup = {
+    op: "AND" | "OR";
+    filters: Array<Filter | FilterGroup>;
 };
 export type BaseTransformationOption = {
     to?: string;
@@ -177,7 +205,7 @@ export interface Connector {
         [key: string]: any;
     };
     fields: string[];
-    filters?: Array<Filter>;
+    filters?: Array<Filter | FilterGroup>;
     transform?: Transformation[];
     sort?: Sort[];
     limit?: number;
@@ -213,6 +241,23 @@ export interface Pipeline<T = object> {
         max_retries_on_rate_limit: number;
     };
 }
+/**
+ * Validation result returned by adapter's validate method
+ */
+export interface ValidationResult {
+    valid: boolean;
+    message?: string;
+    details?: Record<string, unknown>;
+}
+/**
+ * Schema information returned by adapter's getSchema method
+ */
+export interface SchemaInfo {
+    fields: string[];
+    types?: Record<string, string>;
+    primaryKey?: string | string[];
+    required?: string[];
+}
 export interface AdapterInstance {
     getConfig: () => HttpAdapter | DatabaseAdapter;
     connect?(): Promise<void>;
@@ -223,13 +268,43 @@ export interface AdapterInstance {
     }): Promise<{
         data: any[];
         options?: {
+            nextOffset?: string | number;
+            totalCount?: number;
             [key: string]: any;
         };
     }>;
     upload?(data: any[]): Promise<void>;
     getOauthPermissionUrl?: (redirectUrl?: string) => string;
+    /**
+     * Validates the adapter configuration and connection
+     */
+    validate?(): Promise<ValidationResult>;
+    /**
+     * Returns schema information for the current endpoint/table
+     */
+    getSchema?(): Promise<SchemaInfo>;
+    /**
+     * Returns the total count of records for the current query
+     */
+    count?(): Promise<number>;
 }
 export type Adapter = (connector: Connector, auth: AuthConfig) => AdapterInstance;
 export type Adapters = {
     [key: string]: Adapter;
 };
+/**
+ * Result of pipeline validation
+ */
+export interface PipelineValidationResult {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+}
+/**
+ * Validates a pipeline configuration before execution
+ * @param pipeline - Pipeline configuration to validate
+ * @param adapters - Available adapters
+ * @param vault - Credential vault
+ * @returns Validation result with errors and warnings
+ */
+export declare function validatePipeline<T>(pipeline: Pipeline<T>, adapters: Adapters, vault: Vault): PipelineValidationResult;

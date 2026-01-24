@@ -22,6 +22,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.validatePipeline = exports.AdapterError = void 0;
 exports.Orchestrator = Orchestrator;
 const transform_1 = __importDefault(__webpack_require__(626));
 /**
@@ -428,6 +429,173 @@ function Orchestrator(vault, availableAdapters) {
         registerAdapter(id, adapter);
     });
     return { registerAdapter, runPipeline };
+}
+var types_1 = __webpack_require__(699);
+Object.defineProperty(exports, "AdapterError", ({ enumerable: true, get: function () { return types_1.AdapterError; } }));
+Object.defineProperty(exports, "validatePipeline", ({ enumerable: true, get: function () { return types_1.validatePipeline; } }));
+
+
+/***/ }),
+
+/***/ 699:
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AdapterError = void 0;
+exports.validatePipeline = validatePipeline;
+function isAxiosError(error) {
+    return (typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        typeof error.response === 'object');
+}
+/**
+ * Standardized error class for adapter operations with retry support and context
+ */
+class AdapterError extends Error {
+    constructor(message, code = 'UNKNOWN', retryable = false, context, cause) {
+        super(message);
+        this.name = 'AdapterError';
+        this.code = code;
+        this.retryable = retryable;
+        this.context = context;
+        this.cause = cause;
+        // Maintains proper stack trace for where error was thrown (V8 engines)
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, AdapterError);
+        }
+    }
+    /**
+     * Creates an AdapterError from an unknown error type
+     */
+    static from(error, code = 'UNKNOWN', retryable = false, context) {
+        if (error instanceof AdapterError) {
+            return error;
+        }
+        const message = error instanceof Error ? error.message : String(error);
+        const cause = error instanceof Error ? error : undefined;
+        // Detect specific error types from axios or other sources
+        if (isAxiosError(error)) {
+            const status = error.response?.status;
+            if (status === 401 || status === 403) {
+                return new AdapterError(message, 'AUTHENTICATION_FAILED', false, context, cause);
+            }
+            if (status === 404) {
+                return new AdapterError(message, 'NOT_FOUND', false, context, cause);
+            }
+            if (status === 429) {
+                return new AdapterError(message, 'RATE_LIMITED', true, context, cause);
+            }
+            if (status && status >= 500) {
+                return new AdapterError(message, code, true, context, cause);
+            }
+        }
+        return new AdapterError(message, code, retryable, context, cause);
+    }
+    /**
+     * Serializes the error for logging or transmission
+     */
+    toJSON() {
+        return {
+            name: this.name,
+            message: this.message,
+            code: this.code,
+            retryable: this.retryable,
+            context: this.context,
+            cause: this.cause ? {
+                name: this.cause.name,
+                message: this.cause.message
+            } : undefined,
+            stack: this.stack
+        };
+    }
+}
+exports.AdapterError = AdapterError;
+;
+/**
+ * Validates a pipeline configuration before execution
+ * @param pipeline - Pipeline configuration to validate
+ * @param adapters - Available adapters
+ * @param vault - Credential vault
+ * @returns Validation result with errors and warnings
+ */
+function validatePipeline(pipeline, adapters, vault) {
+    const errors = [];
+    const warnings = [];
+    // Validate pipeline has source or data
+    if (!pipeline.source && !pipeline.data) {
+        errors.push('Pipeline must have either a source or data');
+    }
+    // Validate source configuration
+    if (pipeline.source) {
+        const { adapter_id, endpoint_id, credential_id } = pipeline.source;
+        // Check adapter exists
+        if (!adapters[adapter_id]) {
+            errors.push(`Source adapter '${adapter_id}' not found`);
+        }
+        // Check credentials exist
+        if (!vault[credential_id]) {
+            errors.push(`Source credentials '${credential_id}' not found in vault`);
+        }
+        // Validate endpoint_id is provided
+        if (!endpoint_id) {
+            errors.push('Source endpoint_id is required');
+        }
+        // Warn if no fields specified
+        if (!pipeline.source.fields || pipeline.source.fields.length === 0) {
+            warnings.push('No fields specified for source - will use defaults if available');
+        }
+        // Validate filters if present
+        if (pipeline.source.filters) {
+            pipeline.source.filters.forEach((filter, index) => {
+                if ('field' in filter) {
+                    if (!filter.field) {
+                        errors.push(`Filter at index ${index} has empty field`);
+                    }
+                    if (!filter.operator) {
+                        errors.push(`Filter at index ${index} has empty operator`);
+                    }
+                }
+            });
+        }
+    }
+    // Validate target configuration
+    if (pipeline.target) {
+        const { adapter_id, endpoint_id, credential_id } = pipeline.target;
+        // Check adapter exists
+        if (!adapters[adapter_id]) {
+            errors.push(`Target adapter '${adapter_id}' not found`);
+        }
+        // Check credentials exist
+        if (!vault[credential_id]) {
+            errors.push(`Target credentials '${credential_id}' not found in vault`);
+        }
+        // Validate endpoint_id is provided
+        if (!endpoint_id) {
+            errors.push('Target endpoint_id is required');
+        }
+    }
+    // Validate error_handling if present
+    if (pipeline.error_handling) {
+        if (pipeline.error_handling.max_retries < 0) {
+            errors.push('max_retries must be non-negative');
+        }
+        if (pipeline.error_handling.retry_interval < 0) {
+            errors.push('retry_interval must be non-negative');
+        }
+    }
+    // Validate rate_limiting if present
+    if (pipeline.rate_limiting) {
+        if (pipeline.rate_limiting.requests_per_second <= 0) {
+            errors.push('requests_per_second must be positive');
+        }
+    }
+    return {
+        valid: errors.length === 0,
+        errors,
+        warnings
+    };
 }
 
 
