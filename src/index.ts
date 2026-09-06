@@ -18,6 +18,22 @@ import {
     AdapterPagination
 } from './types';
 
+import {
+    runStreamingPipeline as _runStreamingPipeline,
+    runStreamingPipelinesInParallel as _runStreamingPipelinesInParallel,
+    chainStreamingPipelines as _chainStreamingPipelines,
+    StreamingPipelineRunner as _StreamingPipelineRunner,
+    createSourceStream,
+    applyTransformers,
+    uploadBatchWithRetry
+} from './streaming';
+import {
+    StreamingPipeline,
+    StreamingPipelineResult,
+    ParallelStreamingPipelineResult,
+    ChainedStreamingPipelineResult
+} from './types';
+
 /**
  * Creates a promise that resolves after the specified delay
  * @param ms - Delay duration in milliseconds
@@ -604,12 +620,62 @@ function Orchestrator(vault: Vault, availableAdapters: Adapters) {
         return { data }
     }
 
+
+    async function runStreamingPipeline<T>(
+        pipeline: StreamingPipeline<T>,
+        options?: { dryRun?: boolean }
+    ): Promise<StreamingPipelineResult<T>> {
+        const adaptersObj: Adapters = {};
+        adapters.forEach((adapter, id) => {
+            adaptersObj[id] = adapter;
+        });
+        return _runStreamingPipeline(pipeline, vault, adaptersObj, options);
+    }
+
+    async function runParallelStreamingPipelines<T>(
+        pipelines: Array<StreamingPipeline<T>>,
+        options?: { dryRun?: boolean; stopOnError?: boolean }
+    ): Promise<Array<ParallelStreamingPipelineResult<T>>> {
+        const adaptersObj: Adapters = {};
+        adapters.forEach((adapter, id) => {
+            adaptersObj[id] = adapter;
+        });
+        return _runStreamingPipelinesInParallel(pipelines, vault, adaptersObj, options);
+    }
+
+    async function chainStreamingPipelines<T>(
+        pipelines: Array<StreamingPipeline<T>>,
+        options?: { dryRun?: boolean; passData?: boolean }
+    ): Promise<ChainedStreamingPipelineResult<T>> {
+        const adaptersObj: Adapters = {};
+        adapters.forEach((adapter, id) => {
+            adaptersObj[id] = adapter;
+        });
+        return _chainStreamingPipelines(pipelines, vault, adaptersObj, options);
+    }
+
+    function createStreamingRunner<T>(pipeline: StreamingPipeline<T>): _StreamingPipelineRunner<T> {
+        const adaptersObj: Adapters = {};
+        adapters.forEach((adapter, id) => {
+            adaptersObj[id] = adapter;
+        });
+        return new _StreamingPipelineRunner(pipeline, vault, adaptersObj);
+    }
+
     // Register provided adapters
     Object.entries(availableAdapters).forEach(([id, adapter]) => {
         registerAdapter(id, adapter);
     });
 
-    return { registerAdapter, runPipeline };
+    return {
+        registerAdapter,
+        runPipeline,
+        runStreamingPipeline,
+        runParallelStreamingPipelines,
+        runStreamingPipelinesInParallel: runParallelStreamingPipelines,
+        chainStreamingPipelines,
+        createStreamingRunner
+    };
 }
 
 export { Orchestrator };
@@ -630,5 +696,23 @@ export {
     ValidationResult,
     SchemaInfo,
     PipelineValidationResult,
-    validatePipeline
-} from './types'
+    validatePipeline,
+    StreamingAdapterOptions,
+    StreamingAdapterInstance,
+    StreamingAdapter,
+    TransformerStep,
+    StreamingPipeline,
+    StreamingPipelineResult,
+    ParallelStreamingPipelineResult,
+    ChainedStreamingPipelineResult
+} from './types';
+
+export {
+    _runStreamingPipeline as runStreamingPipeline,
+    _runStreamingPipelinesInParallel as runStreamingPipelinesInParallel,
+    _chainStreamingPipelines as chainStreamingPipelines,
+    _StreamingPipelineRunner as StreamingPipelineRunner,
+    createSourceStream,
+    applyTransformers,
+    uploadBatchWithRetry
+};

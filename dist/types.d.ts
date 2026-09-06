@@ -310,3 +310,56 @@ export interface PipelineValidationResult {
  * @returns Validation result with errors and warnings
  */
 export declare function validatePipeline<T>(pipeline: Pipeline<T>, adapters: Adapters, vault: Vault): PipelineValidationResult;
+export interface StreamingAdapterOptions {
+    limit?: number;
+    offset?: number | string;
+    chunkSize?: number;
+    [key: string]: any;
+}
+export interface StreamingAdapterInstance extends AdapterInstance {
+    /**
+     * Download data as an asynchronous stream of chunks/batches
+     */
+    downloadStream?(options: StreamingAdapterOptions): AsyncIterable<any[]>;
+    /**
+     * Upload data from an asynchronous stream of chunks/batches
+     */
+    uploadStream?(stream: AsyncIterable<any[]>, options?: Record<string, any>): Promise<void>;
+}
+export type StreamingAdapter = (connector: Connector, auth: AuthConfig) => StreamingAdapterInstance;
+export type TransformerStep = Transformation | ((data: any[], connector?: Connector) => Promise<any[]> | any[]);
+export interface StreamingPipeline<T = any> extends Pipeline<T> {
+    /** Number of items per chunk/batch during streaming (default: 1000) */
+    chunkSize?: number;
+    /** If true, runs the pipeline without executing target upload operations */
+    dryRun?: boolean;
+    /** Additional transformer steps to apply to each chunk */
+    transformers?: TransformerStep[];
+    /** Alias for transformers */
+    transform?: TransformerStep[];
+    /** Callback invoked after each chunk is extracted and transformed */
+    onChunk?: (chunk: T[], chunkIndex: number) => Promise<void> | void;
+}
+export interface StreamingPipelineResult<T = any> {
+    data: T[];
+    chunksCount: number;
+    totalProcessed: number;
+    dryRun?: boolean;
+}
+export interface ParallelStreamingPipelineResult<T = any> {
+    pipelineId: string;
+    data: T[];
+    chunksCount: number;
+    totalProcessed: number;
+    success: boolean;
+    error?: Error;
+}
+export interface ChainedStreamingPipelineResult<T = any> {
+    results: Array<{
+        pipelineId: string;
+        data: T[];
+        chunksCount: number;
+        totalProcessed: number;
+    }>;
+    finalData: T[];
+}

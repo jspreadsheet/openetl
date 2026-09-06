@@ -3,6 +3,8 @@
  * @module Orchestrator
  */
 import { Pipeline, Adapter, Adapters, Vault } from './types';
+import { runStreamingPipeline as _runStreamingPipeline, runStreamingPipelinesInParallel as _runStreamingPipelinesInParallel, chainStreamingPipelines as _chainStreamingPipelines, StreamingPipelineRunner as _StreamingPipelineRunner, createSourceStream, applyTransformers, uploadBatchWithRetry } from './streaming';
+import { StreamingPipeline, StreamingPipelineResult, ParallelStreamingPipelineResult, ChainedStreamingPipelineResult } from './types';
 /**
  * Default configuration values for the orchestrator
  */
@@ -42,6 +44,23 @@ declare function Orchestrator(vault: Vault, availableAdapters: Adapters): {
     runPipeline: <T>(pipeline: Pipeline<T>) => Promise<{
         data: T[];
     }>;
+    runStreamingPipeline: <T>(pipeline: StreamingPipeline<T>, options?: {
+        dryRun?: boolean;
+    }) => Promise<StreamingPipelineResult<T>>;
+    runParallelStreamingPipelines: <T>(pipelines: Array<StreamingPipeline<T>>, options?: {
+        dryRun?: boolean;
+        stopOnError?: boolean;
+    }) => Promise<Array<ParallelStreamingPipelineResult<T>>>;
+    runStreamingPipelinesInParallel: <T>(pipelines: Array<StreamingPipeline<T>>, options?: {
+        dryRun?: boolean;
+        stopOnError?: boolean;
+    }) => Promise<Array<ParallelStreamingPipelineResult<T>>>;
+    chainStreamingPipelines: <T>(pipelines: Array<StreamingPipeline<T>>, options?: {
+        dryRun?: boolean;
+        passData?: boolean;
+    }) => Promise<ChainedStreamingPipelineResult<T>>;
+    createStreamingRunner: <T>(pipeline: StreamingPipeline<T>) => _StreamingPipelineRunner<T>;
 };
 export { Orchestrator };
-export { DatabaseAdapter, BasicAuth, HttpAdapter, Connector, AuthConfig, OAuth2Auth, ApiKeyAuth, AdapterInstance, Filter, FilterGroup, AdapterError, AdapterErrorCode, ValidationResult, SchemaInfo, PipelineValidationResult, validatePipeline } from './types';
+export { DatabaseAdapter, BasicAuth, HttpAdapter, Connector, AuthConfig, OAuth2Auth, ApiKeyAuth, AdapterInstance, Filter, FilterGroup, AdapterError, AdapterErrorCode, ValidationResult, SchemaInfo, PipelineValidationResult, validatePipeline, StreamingAdapterOptions, StreamingAdapterInstance, StreamingAdapter, TransformerStep, StreamingPipeline, StreamingPipelineResult, ParallelStreamingPipelineResult, ChainedStreamingPipelineResult } from './types';
+export { _runStreamingPipeline as runStreamingPipeline, _runStreamingPipelinesInParallel as runStreamingPipelinesInParallel, _chainStreamingPipelines as chainStreamingPipelines, _StreamingPipelineRunner as StreamingPipelineRunner, createSourceStream, applyTransformers, uploadBatchWithRetry };
