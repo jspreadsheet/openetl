@@ -685,3 +685,73 @@ Support for running across multiple workers/nodes.
 - Validate operators against whitelist
 - Include category and image in all adapters for UI display
 - Use consistent adapter IDs across the codebase
+
+---
+
+## Streaming Mode Pipeline Runner (src/streaming.ts)
+
+A streaming counterpart to the batch `runPipeline`. Instead of buffering the
+entire dataset in memory, it processes data chunk-by-chunk from source →
+transformers → target.
+
+### Highlights
+- **Reuses the existing `Adapter` / `AdapterInstance` interface** used by the
+  regular pipeline runner. The same adapters work in both runners.
+- **Reuses the existing transformer steps** (`Transformation`). Multiple
+  transformers can be chained via `pipeline.transformers` (an array of
+  transformation arrays) and/or `source.transform`.
+- **Dry run mode** via `pipeline.dryRun = true` (extract + transform, no upload).
+- **Parallel execution** via `runStreamingPipelines([...])`.
+- **Sequential chaining** via `runStreamingPipelineChain([...])`. The output of
+  each pipeline is fed as the `data` input of the next when that next pipeline
+  has no `source`/`data` of its own.
+- **Native streaming adapters** via the new `StreamingAdapterInstance`
+  interface (`downloadStream` / `uploadStream`). When absent, the runner
+  transparently falls back to paginated `download` / batched `upload`.
+
+### New Types (src/types.ts)
+```typescript
+export interface StreamChunk<T = any> {
+    data: T[];
+    options?: { nextOffset?: string | number; totalCount?: number; [key: string]: any };
+}
+
+export interface StreamingAdapterInstance extends AdapterInstance {
+    downloadStream?(pageOptions?: { limit?: number; offset?: number | string }): AsyncIterable<StreamChunk>;
+    uploadStream?(stream: AsyncIterable<StreamChunk>): Promise<void>;
+}
+
+export type StreamingAdapter = (connector: Connector, auth: AuthConfig) => StreamingAdapterInstance;
+```
+
+### Usage
+```typescript
+import { StreamingOrchestrator } from 'openetl';
+
+const orchestrator = StreamingOrchestrator(vault, adapters);
+
+// Single pipeline
+await orchestrator.runStreamingPipeline({
+    id: 'p1',
+    source: sourceConnector,
+    target: targetConnector,
+    transformers: [
+        [{ type: 'uppercase', options: { field: 'name' } }],
+        [{ type: 'addPrefix', options: { field: 'name', prefix: 'X-' } }],
+    ],
+});
+
+// Dry run
+await orchestrator.runStreamingPipeline({ id: 'p', source, target, dryRun: true });
+
+// Parallel
+await orchestrator.runStreamingPipelines([pipelineA, pipelineB]);
+
+// Chained
+await orchestrator.runStreamingPipelineChain([extractPipeline, loadPipeline]);
+```
+
+### Unit-testable critical functions (exported)
+`chunkIterableFromPages`, `applyTransformers`, `transformStream`,
+`collectTransformers`, `hasDownloadStream`, `hasUploadStream`,
+`buildSourceStream`, `consumeToTarget`. See `tests/streaming.test.ts`.

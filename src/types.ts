@@ -462,6 +462,53 @@ export type Adapters = {
 };
 
 /**
+ * A batch of records produced or consumed by a streaming pipeline together with
+ * optional pagination metadata (mirrors the shape returned by `download`).
+ */
+export interface StreamChunk<T = any> {
+    data: T[];
+    options?: {
+        nextOffset?: string | number;
+        totalCount?: number;
+        [key: string]: any;
+    };
+}
+
+/**
+ * Optional streaming extension of {@link AdapterInstance}.
+ *
+ * Adapters that can natively stream data may implement `downloadStream` and/or
+ * `uploadStream`. When these are present the streaming pipeline runner will use
+ * them; otherwise it transparently falls back to the paginated `download` /
+ * batched `upload` methods of the regular {@link AdapterInstance}.
+ */
+export interface StreamingAdapterInstance extends AdapterInstance {
+    /**
+     * Streams records from the source as an async iterable of {@link StreamChunk}.
+     * @param pageOptions - Optional paging hints (limit / starting offset).
+     */
+    downloadStream?(pageOptions?: {
+        limit?: number;
+        offset?: number | string;
+    }): AsyncIterable<StreamChunk>;
+
+    /**
+     * Consumes a stream of {@link StreamChunk}s and uploads them to the target.
+     * @param stream - Async iterable of chunks to upload.
+     */
+    uploadStream?(stream: AsyncIterable<StreamChunk>): Promise<void>;
+}
+
+/**
+ * Factory signature for streaming-capable adapters. Fully compatible with the
+ * existing {@link Adapter} type so the same adapters work in both runners.
+ */
+export type StreamingAdapter = (
+    connector: Connector,
+    auth: AuthConfig
+) => StreamingAdapterInstance;
+
+/**
  * Result of pipeline validation
  */
 export interface PipelineValidationResult {

@@ -632,3 +632,27 @@ export {
     PipelineValidationResult,
     validatePipeline
 } from './types'
+export {
+    StreamingOrchestrator,
+    STREAMING_DEFAULT_CONFIG,
+    chunkIterableFromPages,
+    applyTransformers,
+    transformStream,
+    collectTransformers,
+    hasDownloadStream,
+    hasUploadStream,
+    buildSourceStream,
+    consumeToTarget,
+} from './streaming';
+
+export type {
+    StreamingPipeline,
+    StreamingResult,
+    StreamingOrchestratorApi,
+} from './streaming';
+
+export type {
+    StreamChunk,
+    StreamingAdapter,
+    StreamingAdapterInstance,
+} from './types';
